@@ -37,6 +37,7 @@
 
 
 /* Dark mode */
+.dark body,.dark{background:#111827;color:#f3f4f6}
 .dark .inp{background:#1f2937;border-color:#374151;color:#f3f4f6}
 .dark .inp:focus{border-color:#22c55e}
 .dark .tab-btn{color:#9ca3af}
@@ -45,10 +46,30 @@
 .dark .output-box{color:#e5e7eb}
 .dark .output-box strong{color:#f3f4f6}
 .dark .output-box h2,.dark .output-box h3,.dark .output-box h4{color:#f3f4f6}
-.dark .lbl{color:#9ca3af}
+.dark .lbl{color:#d1d5db}
 .dark .placeholder-text{color:#6b7280}
 .dark .stat-card{background:#1f2937;border-color:#374151}
 .dark .stat-label{color:#9ca3af}
 .dark .stat-value{color:#f3f4f6}
 .dark nav{background:#111827;border-color:#374151}
+.dark h2,.dark h3,.dark h4,.dark h5{color:#f3f4f6}
+.dark p,.dark span,.dark li,.dark td,.dark label{color:#d1d5db}
+.dark .font-bold,.dark .font-semibold{color:#f3f4f6}
+.dark .text-gray-900{color:#f3f4f6 !important}
+.dark .text-gray-800{color:#e5e7eb !important}
+.dark .text-gray-700{color:#d1d5db !important}
+.dark .text-gray-600{color:#9ca3af !important}
+.dark .text-gray-500{color:#6b7280 !important}
+.dark .bg-white{background:#1f2937 !important}
+.dark .bg-gray-50{background:#111827 !important}
+.dark .bg-gray-100{background:#374151 !important}
+.dark .border-gray-200{border-color:#374151 !important}
+.dark .border-gray-300{border-color:#4b5563 !important}
+.dark select{background:#1f2937;color:#f3f4f6}
+.dark .upload-box{border-color:#4b5563}
+.dark .upload-box:hover{border-color:#22c55e}
 .dark #coach-messages::-webkit-scrollbar-thumb{background:#4b5563}
+.dark .loading-state{color:#6b7280}
+.dark .text-brand-700{color:#86efac !important}
+.dark .bg-brand-50{background:#14532d !important}
+.dark .border-brand-200{border-color:#166534 !important}
