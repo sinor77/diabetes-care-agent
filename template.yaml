@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  DiabetesControl AI Expert - Bedrock Agent with Lambda Action Group tools
+
+Globals:
+  Function:
+    Timeout: 60
+    Runtime: python3.11
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Parameters:
+  BedrockAgentId:
+    Type: String
+    Default: ""
+    Description: Bedrock Agent ID (set after agent creation)
+  BedrockAgentAliasId:
+    Type: String
+    Default: ""
+    Description: Bedrock Agent Alias ID (set after agent creation)
+  StageName:
+    Type: String
+    Default: prod
+    Description: API Gateway stage name
+
+Resources:
+  # ===== Action Group Lambda (called by Bedrock Agent) =====
+  DiabetesToolsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: diabetes-care-tools
+      CodeUri: lambda/
+      Handler: handler.handler
+      Description: Bedrock Agent Action Group handler for diabetes care tools
+      Policies:
+        - AWSLambdaBasicExecutionRole
+
+  # Permission for Bedrock to invoke the tools Lambda
+  BedrockInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DiabetesToolsFunction
+      Action: lambda:InvokeFunction
+      Principal: bedrock.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+  # ===== API Gateway Lambda (frontend proxy) =====
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: diabetes-care-api
+      CodeUri: api/
+      Handler: handler.handler
+      Description: API Gateway handler - proxies requests to Bedrock Agent
+      Environment:
+        Variables:
+          BEDROCK_AGENT_ID: !Ref BedrockAgentId
+          BEDROCK_AGENT_ALIAS_ID: !Ref BedrockAgentAliasId
+          AWS_REGION_NAME: !Ref AWS::Region
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeAgent
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent-alias/*"
+      Events:
+        ChatPost:
+          Type: Api
+          Properties:
+            Path: /chat
+            Method: post
+            RestApiId: !Ref ApiGateway
+        SessionGet:
+          Type: Api
+          Properties:
+            Path: /session
+            Method: get
+            RestApiId: !Ref ApiGateway
+        CorsChat:
+          Type: Api
+          Properties:
+            Path: /chat
+            Method: options
+            RestApiId: !Ref ApiGateway
+        CorsSession:
+          Type: Api
+          Properties:
+            Path: /session
+            Method: options
+            RestApiId: !Ref ApiGateway
+
+  # ===== API Gateway =====
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: diabetes-care-api
+      StageName: !Ref StageName
+      Cors:
+        AllowMethods: "'POST,GET,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Session-Id'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+  
+  DiabetesToolsFunctionArn:
+    Description: ARN of the tools Lambda (use in Bedrock Agent Action Group setup)
+    Value: !GetAtt DiabetesToolsFunction.Arn
+  
+  ApiFunctionArn:
+    Description: ARN of the API Lambda
+    Value: !GetAtt ApiFunction.Arn

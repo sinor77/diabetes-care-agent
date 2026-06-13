@@ -1,0 +1,16 @@
+# SAM deployment configuration
+# Run: sam deploy --guided (first time) to populate these values
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "diabetes-care-agent"
+resolve_s3 = true
+s3_prefix = "diabetes-care-agent"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "BedrockAgentId=\"\" BedrockAgentAliasId=\"\""
+
+[default.build.parameters]
+use_container = false

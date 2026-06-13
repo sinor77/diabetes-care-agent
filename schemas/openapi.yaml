@@ -1,0 +1,291 @@
+openapi: 3.0.3
+info:
+  title: DiabetesControl AI Tools
+  description: Action group tools for the DiabetesControl AI Expert Bedrock Agent
+  version: "1.0.0"
+
+paths:
+  /meal-analyzer:
+    post:
+      operationId: analyzeMeal
+      summary: Analyze a meal for glycemic impact and provide alternatives
+      description: >
+        Accepts food items with serving sizes, estimates glycemic index, glycemic load,
+        carbohydrate content, and provides healthier alternative suggestions for high-GI foods.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - food_items
+              properties:
+                food_items:
+                  type: array
+                  description: List of food items consumed or planned
+                  items:
+                    type: object
+                    required:
+                      - name
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the food item (e.g., "white rice", "chicken", "banana")
+                      serving_grams:
+                        type: number
+                        description: Serving size in grams. Defaults to 100g if not specified.
+                        default: 100
+      responses:
+        "200":
+          description: Meal analysis with glycemic impact and alternatives
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  meal_summary:
+                    type: object
+                    properties:
+                      total_carbohydrates_grams:
+                        type: number
+                      total_glycemic_load:
+                        type: number
+                      overall_impact:
+                        type: string
+                        enum: [low, moderate, high]
+                      advice:
+                        type: string
+                  food_analysis:
+                    type: array
+                    items:
+                      type: object
+                  alternatives:
+                    type: array
+                    items:
+                      type: object
+                  general_tips:
+                    type: array
+                    items:
+                      type: string
+
+  /lab-interpreter:
+    post:
+      operationId: interpretLabs
+      summary: Interpret lab results against ADA clinical guidelines
+      description: >
+        Parses key metabolic lab values (HbA1c, Fasting Glucose, Lipid Panel, kidney markers)
+        and compares them against ADA Standards of Care reference ranges. Highlights concerning
+        results and provides targeted recommendations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - lab_results
+              properties:
+                lab_results:
+                  type: array
+                  description: List of lab test results
+                  items:
+                    type: object
+                    required:
+                      - metric
+                      - value
+                    properties:
+                      metric:
+                        type: string
+                        description: >
+                          Lab metric name. Supported: hba1c, fasting_glucose, post_meal_glucose,
+                          total_cholesterol, ldl_cholesterol, hdl_cholesterol, triglycerides,
+                          creatinine, egfr, urine_albumin_creatinine_ratio
+                      value:
+                        type: number
+                        description: Numeric value of the lab result
+                patient_sex:
+                  type: string
+                  description: Patient biological sex for sex-specific reference ranges
+                  enum: [male, female, unknown]
+                  default: unknown
+      responses:
+        "200":
+          description: Lab interpretation with flags and recommendations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  summary:
+                    type: object
+                  interpretations:
+                    type: array
+                    items:
+                      type: object
+                  urgent_flags:
+                    type: array
+                    items:
+                      type: object
+                  recommendations:
+                    type: array
+                    items:
+                      type: string
+
+  /risk-predictor:
+    post:
+      operationId: predictRisks
+      summary: Predict near-term diabetes risks from current patterns
+      description: >
+        Analyzes meal timing gaps, exercise patterns, and glucose reading trends to flag
+        near-term risks such as hypoglycemic episodes, hyperglycemic spikes, or dangerous
+        glucose variability. Provides immediate actionable prevention strategies.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                meals:
+                  type: array
+                  description: Recent meals with timing information
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: Meal name or description
+                      time:
+                        type: string
+                        description: Time of meal in HH:MM format (24-hour)
+                exercise:
+                  type: object
+                  description: Planned or recent exercise details
+                  properties:
+                    intensity:
+                      type: string
+                      enum: [low, moderate, high]
+                      description: Exercise intensity level
+                    duration_minutes:
+                      type: number
+                      description: Duration of exercise in minutes
+                    time:
+                      type: string
+                      description: Time of exercise in HH:MM format
+                glucose_readings:
+                  type: array
+                  description: Recent blood glucose readings
+                  items:
+                    type: object
+                    properties:
+                      value:
+                        type: number
+                        description: Glucose value in mg/dL
+                      time:
+                        type: string
+                        description: Time of reading in HH:MM format
+                medication:
+                  type: string
+                  description: Current diabetes medication (e.g., insulin, metformin, glipizide)
+                last_meal_time:
+                  type: string
+                  description: Time of most recent meal in HH:MM format
+      responses:
+        "200":
+          description: Risk assessment with prevention strategies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  overall_risk:
+                    type: object
+                    properties:
+                      level:
+                        type: string
+                        enum: [low, moderate, high]
+                      message:
+                        type: string
+                  risk_breakdown:
+                    type: array
+                    items:
+                      type: object
+                  immediate_actions:
+                    type: array
+                    items:
+                      type: string
+
+  /plan-generator:
+    post:
+      operationId: generatePlan
+      summary: Generate a comprehensive daily diabetes management plan
+      description: >
+        Synthesizes outputs from meal analyzer, lab interpreter, and risk predictor into
+        a structured, actionable daily routine covering nutrition timing, hydration schedule,
+        activity recommendations, and glucose monitoring checklist.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                meal_analysis:
+                  type: object
+                  description: Output from the meal_analyzer tool (optional, for personalization)
+                lab_data:
+                  type: object
+                  description: Output from the lab_interpreter tool (optional, for personalization)
+                risk_data:
+                  type: object
+                  description: Output from the risk_predictor tool (optional, for personalization)
+                patient_info:
+                  type: object
+                  description: Patient information for plan personalization
+                  properties:
+                    weight_kg:
+                      type: number
+                      description: Patient weight in kilograms (for hydration calculation)
+                      default: 70
+                    fitness_level:
+                      type: string
+                      enum: [beginner, moderate, advanced]
+                      description: Current fitness level
+                      default: moderate
+                    diet_type:
+                      type: string
+                      description: Dietary preference (e.g., vegetarian, vegan, keto, mediterranean)
+                    allergies:
+                      type: array
+                      items:
+                        type: string
+                      description: Food allergies or intolerances
+      responses:
+        "200":
+          description: Comprehensive daily management plan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  priority_actions:
+                    type: array
+                    items:
+                      type: string
+                  nutrition_plan:
+                    type: object
+                  hydration_plan:
+                    type: object
+                  activity_plan:
+                    type: object
+                  monitoring_checklist:
+                    type: object

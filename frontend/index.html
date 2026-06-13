@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiabetesControl AI Expert</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' },
+                        accent: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="h-full bg-gray-50 font-sans">
+    <div id="app" class="h-full flex flex-col">
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+                        <span class="text-xl">🩺</span>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-gray-900">DiabetesControl AI Expert</h1>
+                        <p class="text-xs text-gray-500">Your empathetic digital diabetes care assistant</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="status-indicator" class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        Online
+                    </span>
+                    <button onclick="startNewSession()" class="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors">
+                        New Session
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-hidden flex max-w-7xl mx-auto w-full">
+            <!-- Chat Panel -->
+            <div class="flex-1 flex flex-col min-w-0">
+                <!-- Messages -->
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <!-- Welcome message -->
+                    <div class="flex gap-3">
+                        <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                            <span class="text-sm">🩺</span>
+                        </div>
+                        <div class="bg-white rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-gray-100 max-w-[80%]">
+                            <p class="text-gray-800 text-sm leading-relaxed">
+                                Hello! I'm your DiabetesControl AI Expert. 👋
+                            </p>
+                            <p class="text-gray-800 text-sm leading-relaxed mt-2">
+                                I can help you with:
+                            </p>
+                            <ul class="text-gray-700 text-sm mt-1 space-y-1 ml-4 list-disc">
+                                <li><strong>Meal analysis</strong> — Tell me what you ate and I'll estimate the glycemic impact</li>
+                                <li><strong>Lab interpretation</strong> — Share your lab results for a plain-English breakdown</li>
+                                <li><strong>Risk assessment</strong> — I'll flag potential issues based on your patterns</li>
+                                <li><strong>Daily planning</strong> — Get a personalized nutrition, hydration & activity plan</li>
+                            </ul>
+                            <p class="text-gray-600 text-xs mt-3 italic">
+                                ⚠️ I'm an AI assistant, not a doctor. Always consult your healthcare team for medical decisions.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="border-t border-gray-200 bg-white p-4 flex-shrink-0">
+                    <div class="max-w-3xl mx-auto">
+                        <div class="flex gap-2">
+                            <div class="flex-1 relative">
+                                <textarea
+                                    id="message-input"
+                                    placeholder="Tell me what you ate, share lab results, or ask about your diabetes management..."
+                                    class="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400"
+                                    rows="2"
+                                    onkeydown="handleKeyDown(event)"
+                                ></textarea>
+                            </div>
+                            <button
+                                id="send-button"
+                                onclick="sendMessage()"
+                                class="self-end px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="Send message"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="quickPrompt('I had oatmeal with banana and honey for breakfast')" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">🥣 Log a meal</button>
+                            <button onclick="quickPrompt('My HbA1c is 7.8% and fasting glucose is 145 mg/dL')" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">🧪 Share lab results</button>
+                            <button onclick="quickPrompt('Create a daily plan for me. I weigh 75kg and exercise moderately.')" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">📋 Get a daily plan</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Sidebar -->
+            <aside id="dashboard-panel" class="w-80 border-l border-gray-200 bg-white overflow-y-auto hidden lg:block flex-shrink-0">
+                <div class="p-4">
+                    <h2 class="text-sm font-semibold text-gray-900 mb-4">📊 Latest Insights</h2>
+                    
+                    <!-- Tool Output Cards -->
+                    <div id="dashboard-cards" class="space-y-3">
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                            <p class="text-xs text-gray-500 text-center py-6">
+                                Insights will appear here as you interact with the assistant.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
