@@ -1,1 +1,3 @@
 boto3>=1.34.0
+# Note: boto3 is pre-installed in AWS Lambda Python runtime.
+# This file is only needed for local testing.

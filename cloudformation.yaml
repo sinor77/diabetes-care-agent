@@ -1,0 +1,345 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "DiabetesControl AI Expert - Bedrock Agent with Lambda tools",
+  "Parameters": {
+    "BedrockAgentId": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Bedrock Agent ID (set after agent creation)"
+    },
+    "BedrockAgentAliasId": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Bedrock Agent Alias ID (set after agent creation)"
+    }
+  },
+  "Resources": {
+    "DiabetesToolsRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "diabetes-care-tools-role-ap-southeast-1",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ]
+      }
+    },
+    "ApiRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "diabetes-care-api-role-ap-southeast-1",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "BedrockAgentInvoke",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeAgent"
+                  ],
+                  "Resource": "arn:aws:bedrock:ap-southeast-1:823164611866:agent-alias/*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DiabetesToolsFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "diabetes-care-tools",
+        "Runtime": "python3.13",
+        "Handler": "handler.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DiabetesToolsRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": "diabetes-care-deploy-823164611866-ap-southeast-1",
+          "S3Key": "lambda/diabetes-tools-lambda.zip"
+        },
+        "Timeout": 60,
+        "MemorySize": 256
+      }
+    },
+    "BedrockInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "DiabetesToolsFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "bedrock.amazonaws.com",
+        "SourceAccount": "823164611866"
+      }
+    },
+    "ApiFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "diabetes-care-api",
+        "Runtime": "python3.13",
+        "Handler": "handler.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "ApiRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": "diabetes-care-deploy-823164611866-ap-southeast-1",
+          "S3Key": "lambda/diabetes-api-lambda.zip"
+        },
+        "Timeout": 60,
+        "MemorySize": 256,
+        "Environment": {
+          "Variables": {
+            "BEDROCK_AGENT_ID": {
+              "Ref": "BedrockAgentId"
+            },
+            "BEDROCK_AGENT_ALIAS_ID": {
+              "Ref": "BedrockAgentAliasId"
+            },
+            "AWS_REGION_NAME": "ap-southeast-1"
+          }
+        }
+      }
+    },
+    "ApiGateway": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": "diabetes-care-api",
+        "Description": "DiabetesControl AI Expert API"
+      }
+    },
+    "ApiResourceChat": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGateway"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "ApiGateway",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "chat"
+      }
+    },
+    "ApiResourceSession": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGateway"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "ApiGateway",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "session"
+      }
+    },
+    "ChatPostMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGateway"
+        },
+        "ResourceId": {
+          "Ref": "ApiResourceChat"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "Uri": {
+            "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations"
+          }
+        }
+      }
+    },
+    "ChatOptionsMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGateway"
+        },
+        "ResourceId": {
+          "Ref": "ApiResourceChat"
+        },
+        "HttpMethod": "OPTIONS",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "MOCK",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Session-Id'",
+                "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              },
+              "ResponseTemplates": {
+                "application/json": ""
+              }
+            }
+          ],
+          "RequestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          }
+        },
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true
+            }
+          }
+        ]
+      }
+    },
+    "SessionGetMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGateway"
+        },
+        "ResourceId": {
+          "Ref": "ApiResourceSession"
+        },
+        "HttpMethod": "GET",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "Uri": {
+            "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations"
+          }
+        }
+      }
+    },
+    "SessionOptionsMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGateway"
+        },
+        "ResourceId": {
+          "Ref": "ApiResourceSession"
+        },
+        "HttpMethod": "OPTIONS",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "MOCK",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Session-Id'",
+                "method.response.header.Access-Control-Allow-Methods": "'GET,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              },
+              "ResponseTemplates": {
+                "application/json": ""
+              }
+            }
+          ],
+          "RequestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          }
+        },
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true
+            }
+          }
+        ]
+      }
+    },
+    "ApiDeployment": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "DependsOn": [
+        "ChatPostMethod",
+        "SessionGetMethod",
+        "ChatOptionsMethod",
+        "SessionOptionsMethod"
+      ],
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGateway"
+        },
+        "StageName": "prod"
+      }
+    },
+    "ApiLambdaPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "ApiFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ApiGatewayUrl": {
+      "Description": "API Gateway endpoint URL",
+      "Value": {
+        "Fn::Sub": "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod"
+      }
+    },
+    "DiabetesToolsFunctionArn": {
+      "Description": "ARN of the tools Lambda",
+      "Value": {
+        "Fn::GetAtt": [
+          "DiabetesToolsFunction",
+          "Arn"
+        ]
+      }
+    }
+  }
+}
