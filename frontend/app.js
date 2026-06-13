@@ -78,18 +78,30 @@ function showBadge(name) {
 }
 
 // ========== FILE UPLOAD ==========
+let labImageBase64 = "";
+let labImageType = "";
+
 function onLabUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     document.getElementById("lab-upload-status").innerHTML = `<p class="text-xs text-brand-600 font-semibold">✓ ${file.name}</p><p class="text-xs text-gray-400">${(file.size/1024).toFixed(0)} KB uploaded</p>`;
-    if (file.type.startsWith("text/") || file.name.match(/\.(txt|csv)$/)) {
-        new FileReader().onload = (ev) => { labFileText = ev.target.result; };
-        new FileReader().readAsText(file);
+
+    if (file.type.startsWith("image/")) {
+        // Read as base64 for vision API
+        labImageType = file.type;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            // Remove the data:image/xxx;base64, prefix
+            labImageBase64 = ev.target.result.split(",")[1];
+            labFileText = "[Image uploaded and will be analyzed with AI vision]";
+        };
+        reader.readAsDataURL(file);
+    } else if (file.type.startsWith("text/") || file.name.match(/\.(txt|csv)$/)) {
         const reader = new FileReader();
         reader.onload = (ev) => { labFileText = ev.target.result; };
         reader.readAsText(file);
     } else {
-        labFileText = "[Lab image uploaded: " + file.name + ". Please analyze based on typed values below.]";
+        labFileText = "[File uploaded: " + file.name + ". Please type key values below for analysis.]";
     }
 }
 
@@ -117,6 +129,12 @@ async function runSingle(tool) {
     const el = document.getElementById(outId);
     el.innerHTML = `<div class="loading-state"><div class="spinner"></div>Analyzing with AI...</div>`;
 
+    // Special handling: Lab with image uses vision endpoint
+    if (tool === "lab" && labImageBase64) {
+        await runLabVision(p, el);
+        return;
+    }
+
     const prompt = buildPrompt(tool, p);
     if (!prompt) { el.innerHTML = `<div class="placeholder-text">Please fill in the required inputs.</div>`; return; }
 
@@ -138,6 +156,36 @@ async function runSingle(tool) {
         }
     } catch (e) {
         el.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">Connection failed. Check your internet.</div>`;
+    }
+}
+
+async function runLabVision(p, el) {
+    const ctx = `${p.name||"Patient"}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} diabetes, HbA1c: ${p.hba1c||"?"}%, Meds: ${p.meds||"unknown"}`;
+    const typedVals = v("lab-input");
+
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/lab-vision`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                image: labImageBase64,
+                media_type: labImageType,
+                profile_context: ctx,
+                typed_values: typedVals,
+            }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            results.lab = data.response;
+            el.innerHTML = formatMd(data.response);
+            document.getElementById("email-btn").disabled = false;
+            if (ttsEnabled) speakSection("out-lab");
+        } else {
+            const err = await res.json().catch(() => ({}));
+            el.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">Error: ${err.error || res.statusText}</div>`;
+        }
+    } catch(e) {
+        el.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">Connection failed: ${e.message}</div>`;
     }
 }
 

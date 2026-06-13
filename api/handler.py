@@ -111,6 +111,89 @@ def _send_email_report(to_email: str, name: str, analysis: str, profile: dict) -
         return {"error": str(e)}
 
 
+def _analyze_lab_with_vision(image_base64: str, media_type: str, profile_context: str, typed_values: str) -> dict:
+    """Analyze a lab result image using Claude Haiku's vision via the Converse API."""
+    bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
+
+    system_prompt = """You are a clinical lab interpreter for diabetes patients. 
+You will be shown a lab result document (image or text). Your job is to:
+1. Extract ALL numeric lab values visible in the image
+2. For each value, compare against ADA clinical guidelines
+3. Flag abnormal results clearly
+4. Provide a plain-language summary
+
+Be ACCURATE — only report values you can actually read from the image. If a value is unclear, say so.
+Never invent or guess values. Only interpret what is clearly visible."""
+
+    # Build the message content
+    content = []
+
+    # Add image if provided
+    if image_base64:
+        import base64
+        content.append({
+            "image": {
+                "format": media_type.split("/")[-1] if "/" in media_type else "jpeg",
+                "source": {"bytes": base64.b64decode(image_base64)}
+            }
+        })
+
+    # Build the text prompt
+    text_prompt = "Analyze this lab result"
+    if profile_context:
+        text_prompt += f"\n\nPatient context: {profile_context}"
+    if typed_values:
+        text_prompt += f"\n\nAdditional typed values: {typed_values}"
+
+    text_prompt += """
+
+Please provide your analysis in this format:
+
+## 📋 Extracted Lab Values
+(List each value you can read from the image with its unit)
+
+## 🔍 Interpretation
+For each value:
+- Value | Normal Range | Status (✅ Normal / ⚠️ Borderline / 🔴 High Risk)
+- Brief explanation
+
+## 📊 Overall Assessment
+(2-3 sentence summary of overall metabolic health)
+
+## ⚡ Priority Actions
+(Top 3 recommendations based on concerning results)
+
+## 📅 Follow-Up
+(When to retest and what to discuss with doctor)"""
+
+    content.append({"text": text_prompt})
+
+    try:
+        response = bedrock_runtime.converse(
+            modelId="anthropic.claude-3-haiku-20240307-v1:0",
+            messages=[{"role": "user", "content": content}],
+            system=[{"text": system_prompt}],
+            inferenceConfig={"maxTokens": 2000, "temperature": 0.3}
+        )
+
+        # Extract the response text
+        output_message = response.get("output", {}).get("message", {})
+        response_text = ""
+        for block in output_message.get("content", []):
+            if "text" in block:
+                response_text += block["text"]
+
+        return {"response": response_text}
+
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        logger.error(f"Bedrock vision error: {error_msg}")
+        return {"error": f"Vision analysis failed: {error_msg}"}
+    except Exception as e:
+        logger.error(f"Vision error: {str(e)}")
+        return {"error": str(e)}
+
+
 def _invoke_agent(user_message: str, session_id: str) -> dict:
     """Invoke the Bedrock Agent and collect the response."""
     if not AGENT_ID or not AGENT_ALIAS_ID:
@@ -212,6 +295,31 @@ def handler(event, context):
             return _error_response(400, "No analysis to send")
 
         result = _send_email_report(email, name, analysis, body.get("profile", {}))
+        if "error" in result:
+            return _error_response(500, result["error"])
+
+        return {
+            "statusCode": 200,
+            "headers": _cors_headers(),
+            "body": json.dumps(result),
+        }
+
+    # POST /lab-vision - Analyze lab image with Claude vision (Converse API)
+    if http_method == "POST" and "/lab-vision" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+
+        image_base64 = body.get("image", "")
+        media_type = body.get("media_type", "image/jpeg")
+        profile_context = body.get("profile_context", "")
+        typed_values = body.get("typed_values", "")
+
+        if not image_base64 and not typed_values:
+            return _error_response(400, "Either image or typed lab values required")
+
+        result = _analyze_lab_with_vision(image_base64, media_type, profile_context, typed_values)
         if "error" in result:
             return _error_response(500, result["error"])
 
