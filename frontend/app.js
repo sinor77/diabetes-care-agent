@@ -1,18 +1,20 @@
 /**
  * DiabetesControl AI Expert - Frontend Application
+ * Features: AI Analysis, Text-to-Speech, Email Reports, Persistent Profile
  */
 
 let sessionId = null;
 let isLoading = false;
+let ttsEnabled = false;
+let lastAnalysisText = "";
 
-// Initialize on page load
+// ========== INITIALIZATION ==========
+
 document.addEventListener("DOMContentLoaded", () => {
     initSession();
+    loadProfile();
 });
 
-/**
- * Initialize a chat session.
- */
 async function initSession() {
     try {
         const response = await fetch(`${CONFIG.API_ENDPOINT}/session`);
@@ -27,11 +29,195 @@ async function initSession() {
     }
 }
 
-/**
- * Gather all form inputs into a structured profile object.
- */
+// ========== PROFILE PERSISTENCE ==========
+
+function saveProfile() {
+    const profile = gatherProfile();
+    localStorage.setItem("diabetes_profile", JSON.stringify(profile));
+    
+    // Update profile indicator
+    if (profile.name) {
+        document.getElementById("profile-status").classList.remove("hidden");
+        document.getElementById("profile-status").classList.add("flex");
+        document.getElementById("profile-name-display").textContent = profile.name;
+    }
+    
+    showToast("💾", "Profile saved! It will be here when you come back.");
+}
+
+function loadProfile() {
+    const saved = localStorage.getItem("diabetes_profile");
+    if (!saved) return;
+
+    try {
+        const profile = JSON.parse(saved);
+        
+        // Populate all fields
+        if (profile.email) document.getElementById("input-email").value = profile.email;
+        if (profile.name) document.getElementById("input-name").value = profile.name;
+        if (profile.diabetesType) document.getElementById("input-diabetes-type").value = profile.diabetesType;
+        if (profile.yearsWithDiabetes) {
+            document.getElementById("input-years").value = profile.yearsWithDiabetes;
+            document.getElementById("years-value").textContent = profile.yearsWithDiabetes;
+        }
+        if (profile.age) {
+            document.getElementById("input-age").value = profile.age;
+            document.getElementById("age-value").textContent = profile.age;
+        }
+        if (profile.hba1c) document.getElementById("input-hba1c").value = profile.hba1c;
+        if (profile.bloodPressure) document.getElementById("input-bp").value = profile.bloodPressure;
+        if (profile.height) document.getElementById("input-height").value = profile.height;
+        if (profile.weight) document.getElementById("input-weight").value = profile.weight;
+        if (profile.medications) document.getElementById("input-medications").value = profile.medications;
+        if (profile.goal) document.getElementById("input-goal").value = profile.goal;
+        if (profile.goalHba1c) document.getElementById("input-goal-hba1c").value = profile.goalHba1c;
+        if (profile.mainChallenge) document.getElementById("input-challenge").value = profile.mainChallenge;
+
+        // Show profile indicator
+        if (profile.name) {
+            document.getElementById("profile-status").classList.remove("hidden");
+            document.getElementById("profile-status").classList.add("flex");
+            document.getElementById("profile-name-display").textContent = profile.name;
+        }
+
+        showToast("👤", `Welcome back, ${profile.name || "User"}!`);
+    } catch (e) {
+        console.error("Failed to load profile:", e);
+    }
+}
+
+// ========== TEXT-TO-SPEECH ==========
+
+function toggleTTS() {
+    ttsEnabled = !ttsEnabled;
+    const label = document.getElementById("tts-label");
+    const btn = document.getElementById("tts-toggle");
+    
+    if (ttsEnabled) {
+        label.textContent = "TTS On";
+        btn.classList.remove("bg-gray-100", "text-gray-600");
+        btn.classList.add("bg-emerald-100", "text-emerald-700");
+        showToast("🔊", "Text-to-Speech enabled. AI responses will be read aloud.");
+    } else {
+        label.textContent = "TTS Off";
+        btn.classList.remove("bg-emerald-100", "text-emerald-700");
+        btn.classList.add("bg-gray-100", "text-gray-600");
+        speechSynthesis.cancel();
+        showToast("🔇", "Text-to-Speech disabled.");
+    }
+}
+
+function speakSection(elementId) {
+    const el = document.getElementById(elementId);
+    const text = el.innerText || el.textContent;
+    
+    if (!text || text.includes("Fill in") || text.includes("analyzing")) return;
+    
+    speakText(text);
+}
+
+function speakText(text) {
+    // Cancel any ongoing speech
+    speechSynthesis.cancel();
+    
+    // Clean text for speech
+    const cleanText = text
+        .replace(/[📊⚠️📈🤖🔊💪🥗💧🩺✓✗]/g, "")
+        .replace(/\*\*/g, "")
+        .replace(/#{1,4}\s/g, "")
+        .replace(/\n+/g, ". ")
+        .trim();
+
+    if (!cleanText) return;
+
+    // Split into chunks (speech synthesis has limits)
+    const chunks = cleanText.match(/.{1,200}[.!?]|.{1,200}/g) || [cleanText];
+    
+    chunks.forEach((chunk, index) => {
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        
+        // Try to use a natural-sounding voice
+        const voices = speechSynthesis.getVoices();
+        const preferred = voices.find(v => v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha"));
+        if (preferred) utterance.voice = preferred;
+        
+        speechSynthesis.speak(utterance);
+    });
+}
+
+// ========== EMAIL REPORT ==========
+
+async function sendEmailReport() {
+    const email = document.getElementById("input-email").value.trim();
+    if (!email) {
+        showToast("⚠️", "Please enter your email address in the profile section.");
+        return;
+    }
+
+    if (!lastAnalysisText) {
+        showToast("⚠️", "Generate an analysis first, then send it as a report.");
+        return;
+    }
+
+    const emailBtn = document.getElementById("email-btn");
+    emailBtn.disabled = true;
+    emailBtn.innerHTML = `<div class="spinner-sm"></div> Sending...`;
+
+    try {
+        const profile = gatherProfile();
+        const response = await fetch(`${CONFIG.API_ENDPOINT}/email-report`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email: email,
+                name: profile.name || "User",
+                analysis: lastAnalysisText,
+                profile: profile,
+            }),
+        });
+
+        if (response.ok) {
+            showToast("📧", `Report sent to ${email}!`);
+        } else {
+            const err = await response.json().catch(() => ({}));
+            showToast("⚠️", err.error || "Failed to send email. Try again later.");
+        }
+    } catch (error) {
+        showToast("⚠️", "Could not connect to email service. Report saved locally.");
+        // Fallback: download as text file
+        downloadReport();
+    } finally {
+        emailBtn.disabled = false;
+        emailBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> 📧 Email Progress Report`;
+    }
+}
+
+function downloadReport() {
+    const profile = gatherProfile();
+    const content = `DiabetesControl AI Expert - Progress Report\n` +
+        `Date: ${new Date().toLocaleDateString()}\n` +
+        `Patient: ${profile.name || "N/A"}\n` +
+        `========================================\n\n` +
+        lastAnalysisText;
+    
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `diabetes-report-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("📄", "Report downloaded as text file.");
+}
+
+// ========== AI ANALYSIS ==========
+
 function gatherProfile() {
     return {
+        email: document.getElementById("input-email").value.trim(),
         name: document.getElementById("input-name").value.trim(),
         diabetesType: document.getElementById("input-diabetes-type").value,
         yearsWithDiabetes: document.getElementById("input-years").value,
@@ -48,9 +234,6 @@ function gatherProfile() {
     };
 }
 
-/**
- * Build a comprehensive prompt from the user profile.
- */
 function buildPrompt(profile) {
     let prompt = `Patient Profile:\n`;
     if (profile.name) prompt += `- Name: ${profile.name}\n`;
@@ -80,26 +263,24 @@ function buildPrompt(profile) {
     return prompt;
 }
 
-/**
- * Run the full AI analysis.
- */
 async function runAnalysis() {
     if (isLoading) return;
 
     const profile = gatherProfile();
 
-    // Validate minimum inputs
     if (!profile.name && !profile.hba1c && !profile.question) {
-        alert("Please fill in at least your name, HbA1c, or ask a question.");
+        showToast("⚠️", "Please fill in at least your name, HbA1c, or ask a question.");
         return;
     }
+
+    // Auto-save profile
+    saveProfile();
 
     isLoading = true;
     const btn = document.getElementById("analyze-btn");
     btn.disabled = true;
     btn.innerHTML = `<div class="spinner"></div> Analyzing...`;
 
-    // Show loading in all panels
     setLoading("output-analysis");
     setLoading("output-risk");
     setLoading("output-improvement");
@@ -122,7 +303,16 @@ async function runAnalysis() {
 
         if (response.ok) {
             const data = await response.json();
+            lastAnalysisText = data.response;
             parseAndDisplayResults(data.response);
+            
+            // Enable email button
+            document.getElementById("email-btn").disabled = false;
+
+            // Auto-speak if TTS is on
+            if (ttsEnabled && data.response) {
+                speakText(data.response);
+            }
         } else {
             const errorData = await response.json().catch(() => ({}));
             const errorMsg = errorData.error || `Error ${response.status}: ${response.statusText}`;
@@ -144,24 +334,16 @@ async function runAnalysis() {
     }
 }
 
-/**
- * Parse the AI response and split it into the 4 output panels.
- */
+// ========== DISPLAY HELPERS ==========
+
 function parseAndDisplayResults(text) {
     if (!text) {
-        setError("output-analysis", "No response received from the AI.");
+        setError("output-analysis", "No response received.");
         return;
     }
 
-    // Try to split by section headers
-    const sections = {
-        analysis: "",
-        risk: "",
-        improvement: "",
-        chat: "",
-    };
+    const sections = { analysis: "", risk: "", improvement: "", chat: "" };
 
-    // Match sections by numbered headers or keywords
     const analysisMatch = text.match(/(?:1\.\s*\*?\*?INSTANT DIABETES ANALYSIS\*?\*?[:\s]*)([\s\S]*?)(?=2\.\s*\*?\*?5-YEAR|$)/i);
     const riskMatch = text.match(/(?:2\.\s*\*?\*?5-YEAR COMPLICATION RISK\*?\*?[:\s]*)([\s\S]*?)(?=3\.\s*\*?\*?HBA1C|$)/i);
     const improvementMatch = text.match(/(?:3\.\s*\*?\*?HBA1C IMPROVEMENT\*?\*?[:\s]*)([\s\S]*?)(?=4\.\s*\*?\*?AI COACHING|$)/i);
@@ -173,57 +355,55 @@ function parseAndDisplayResults(text) {
         sections.improvement = improvementMatch ? improvementMatch[1].trim() : "";
         sections.chat = chatMatch ? chatMatch[1].trim() : "";
     } else {
-        // Couldn't parse sections — put everything in analysis
         sections.analysis = text;
-        sections.risk = "Analysis included above.";
-        sections.improvement = "Analysis included above.";
-        sections.chat = "Analysis included above.";
+        sections.risk = "See full analysis above.";
+        sections.improvement = "See full analysis above.";
+        sections.chat = "See full analysis above.";
     }
 
-    // Render each section
-    renderOutput("output-analysis", sections.analysis || "No data available for this section.");
-    renderOutput("output-risk", sections.risk || "Insufficient data to calculate risk. Please provide HbA1c, age, and blood pressure.");
-    renderOutput("output-improvement", sections.improvement || "Please provide current and goal HbA1c values.");
-    renderOutput("output-chat", sections.chat || "No specific question was asked.");
+    renderOutput("output-analysis", sections.analysis || "No data for this section.");
+    renderOutput("output-risk", sections.risk || "Provide HbA1c, age, and blood pressure for risk calculation.");
+    renderOutput("output-improvement", sections.improvement || "Provide current and goal HbA1c values.");
+    renderOutput("output-chat", sections.chat || "No specific question asked.");
 }
 
-/**
- * Render formatted output in a panel.
- */
 function renderOutput(elementId, text) {
     const el = document.getElementById(elementId);
     el.innerHTML = `<div class="prose prose-sm max-w-none">${formatMarkdown(text)}</div>`;
     el.classList.add("message-enter");
 }
 
-/**
- * Show loading state.
- */
 function setLoading(elementId) {
-    const el = document.getElementById(elementId);
-    el.innerHTML = `
+    document.getElementById(elementId).innerHTML = `
         <div class="flex items-center justify-center py-8 gap-3">
             <div class="spinner"></div>
             <span class="text-sm text-gray-400">AI is analyzing your data...</span>
-        </div>
-    `;
+        </div>`;
 }
 
-/**
- * Show error state.
- */
 function setError(elementId, message) {
-    const el = document.getElementById(elementId);
-    el.innerHTML = `
+    document.getElementById(elementId).innerHTML = `
         <div class="bg-red-50 rounded-xl p-4 border border-red-200">
             <p class="text-sm text-red-700">⚠️ ${escapeHtml(message)}</p>
-        </div>
-    `;
+        </div>`;
 }
 
-/**
- * Format markdown text to HTML.
- */
+// ========== UTILITIES ==========
+
+function showToast(icon, message) {
+    const toast = document.getElementById("toast");
+    document.getElementById("toast-icon").textContent = icon;
+    document.getElementById("toast-message").textContent = message;
+    
+    toast.classList.remove("translate-y-20", "opacity-0");
+    toast.classList.add("translate-y-0", "opacity-100");
+    
+    setTimeout(() => {
+        toast.classList.remove("translate-y-0", "opacity-100");
+        toast.classList.add("translate-y-20", "opacity-0");
+    }, 3000);
+}
+
 function formatMarkdown(text) {
     if (!text) return "";
     return text
@@ -239,16 +419,12 @@ function formatMarkdown(text) {
         .replace(/^# (.*$)/gm, '<h2 class="font-bold text-gray-900 text-lg mt-4 mb-2">$1</h2>')
         .replace(/^- (.*$)/gm, '<li class="ml-4 list-disc text-gray-700">$1</li>')
         .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 list-decimal text-gray-700">$2</li>')
-        .replace(/(<li.*<\/li>\n?)+/g, '<ul class="space-y-1 my-2">$&</ul>')
         .replace(/\n\n/g, '</p><p class="mb-2">')
         .replace(/\n/g, "<br>")
         .replace(/^/, '<p class="mb-2">')
         .replace(/$/, '</p>');
 }
 
-/**
- * Escape HTML entities.
- */
 function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
