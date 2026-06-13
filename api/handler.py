@@ -45,6 +45,30 @@ PROFILE_TABLE = "diabetes-care-profiles"
 SNS_TOPIC_ARN = "arn:aws:sns:ap-southeast-1:823164611866:diabetes-care-reminders"
 
 
+def _synthesize_speech(text: str) -> dict:
+    """Convert text to speech using Amazon Polly."""
+    import base64
+    polly = boto3.client("polly", region_name=REGION)
+    try:
+        # Truncate text to Polly limit (3000 chars)
+        clean_text = text[:3000].replace("**", "").replace("##", "").replace("*", "")
+        response = polly.synthesize_speech(
+            Text=clean_text,
+            OutputFormat="mp3",
+            VoiceId="Joanna",
+            Engine="neural"
+        )
+        audio_stream = response["AudioStream"].read()
+        audio_base64 = base64.b64encode(audio_stream).decode("utf-8")
+        return {"status": "success", "audio": audio_base64, "format": "mp3"}
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        logger.error(f"Polly error: {error_msg}")
+        return {"error": f"Polly failed: {error_msg}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def _detect_medical_entities(text: str) -> dict:
     """Extract medical entities using Amazon Comprehend Medical."""
     comprehend = boto3.client("comprehendmedical", region_name=REGION)
@@ -412,6 +436,21 @@ def handler(event, context):
             "headers": _cors_headers(),
             "body": json.dumps(result),
         }
+
+    # POST /polly - Convert text to speech using Amazon Polly
+    if http_method == "POST" and "/polly" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        text = body.get("text", "").strip()
+        if not text:
+            return _error_response(400, "Text is required")
+        result = _synthesize_speech(text)
+        if "error" in result:
+            return _error_response(500, result["error"])
+        # Return audio as base64
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
 
     # POST /comprehend-medical - Extract medical entities from text
     if http_method == "POST" and "/comprehend-medical" in path:

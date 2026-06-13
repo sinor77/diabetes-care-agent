@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DiabetesControl AI Expert</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6/dist/amazon-cognito-identity.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <script>
         tailwind.config = {
@@ -30,12 +31,15 @@
                 <span class="font-bold text-gray-900 text-lg">DiabetesControl AI</span>
             </div>
             <div class="flex items-center gap-2">
-                <button id="tts-btn" onclick="toggleTTS()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 hover:bg-gray-100 transition" title="Text-to-Speech">
+                <button id="tts-btn" onclick="toggleTTS()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 hover:bg-gray-100 transition" title="Text-to-Speech (Amazon Polly)">
                     🔊 <span id="tts-label">Off</span>
                 </button>
                 <span id="profile-badge" class="hidden px-3 py-1.5 rounded-full text-xs bg-brand-50 text-brand-700 border border-brand-200">
                     👤 <span id="badge-name">User</span>
                 </span>
+                <button id="auth-btn" onclick="showAuthModal()" class="px-3 py-1.5 rounded-full text-xs bg-brand-600 text-white hover:bg-brand-700 transition">
+                    Sign In
+                </button>
             </div>
         </div>
     </nav>
@@ -308,7 +312,27 @@
         </div>
     </div>
 
-    <script src="config.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <h3 id="auth-title" class="font-bold text-lg text-gray-900 mb-4">Sign In</h3>
+            <div class="space-y-3">
+                <input id="auth-email" type="email" class="inp" placeholder="Email">
+                <input id="auth-password" type="password" class="inp" placeholder="Password (min 8 chars, 1 number)">
+                <div id="auth-confirm-row" class="hidden">
+                    <input id="auth-code" type="text" class="inp" placeholder="Verification code (check email)">
+                </div>
+            </div>
+            <div id="auth-error" class="text-xs text-red-600 mt-2 hidden"></div>
+            <button id="auth-submit" onclick="handleAuth()" class="w-full mt-4 py-2.5 bg-brand-600 text-white font-medium rounded-xl hover:bg-brand-700 transition">Sign In</button>
+            <div class="flex justify-between mt-3">
+                <button onclick="switchAuthMode('signup')" class="text-xs text-brand-600 hover:underline" id="auth-switch">Need an account? Sign Up</button>
+                <button onclick="closeAuthModal()" class="text-xs text-gray-500 hover:underline">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js?v=4"></script>
+    <script src="app.js?v=4"></script>
 </body>
 </html>

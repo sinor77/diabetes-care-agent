@@ -214,17 +214,42 @@ function compressImage(file, maxSize, quality) {
     });
 }
 
-// ========== TTS ==========
+// ========== TTS (Amazon Polly) ==========
 function toggleTTS() {
     ttsEnabled = !ttsEnabled;
     document.getElementById("tts-label").textContent = ttsEnabled ? "On" : "Off";
     document.getElementById("tts-btn").style.background = ttsEnabled ? "#dcfce7" : "";
-    if (!ttsEnabled) speechSynthesis.cancel();
+    if (!ttsEnabled) { if (window.currentAudio) window.currentAudio.pause(); }
 }
 
-function speakSection(id) {
+async function speakSection(id) {
     const txt = document.getElementById(id)?.innerText;
     if (!txt || txt.length < 30) return;
+
+    // Try Polly first, fallback to browser TTS
+    try {
+        const clean = txt.replace(/[🥗🧪⚡📋🤖🔊📧👤📊⚠️📈✓✗💪💧🩺🍽️🏃✅🔴]/g, "").substring(0, 2900);
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/polly`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: clean }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.audio) {
+                const audioBlob = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+                const blob = new Blob([audioBlob], { type: "audio/mp3" });
+                const url = URL.createObjectURL(blob);
+                if (window.currentAudio) window.currentAudio.pause();
+                window.currentAudio = new Audio(url);
+                window.currentAudio.play();
+                toast("🔊", "Playing with Amazon Polly...");
+                return;
+            }
+        }
+    } catch (e) { /* fallback to browser TTS */ }
+
+    // Fallback: browser TTS
     speechSynthesis.cancel();
     const clean = txt.replace(/[🥗🧪⚡📋🤖🔊📧👤📊⚠️📈✓✗💪💧🩺🍽️🏃✅🔴]/g, "");
     const chunks = clean.match(/.{1,280}[.!?\n]|.{1,280}/g) || [clean];
@@ -522,3 +547,162 @@ function formatMd(text) {
         .replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
 }
 function esc(t) { const d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
+
+
+// ========== COGNITO AUTH ==========
+let authMode = "signin"; // signin, signup, confirm
+let cognitoUser = null;
+
+function getUserPool() {
+    const poolData = {
+        UserPoolId: CONFIG.COGNITO_USER_POOL_ID,
+        ClientId: CONFIG.COGNITO_CLIENT_ID,
+    };
+    return new AmazonCognitoIdentity.CognitoUserPool(poolData);
+}
+
+function showAuthModal() {
+    document.getElementById("auth-modal").classList.remove("hidden");
+    document.getElementById("auth-modal").classList.add("flex");
+}
+
+function closeAuthModal() {
+    document.getElementById("auth-modal").classList.add("hidden");
+    document.getElementById("auth-modal").classList.remove("flex");
+    document.getElementById("auth-error").classList.add("hidden");
+}
+
+function switchAuthMode(mode) {
+    authMode = mode;
+    const title = document.getElementById("auth-title");
+    const submit = document.getElementById("auth-submit");
+    const switchBtn = document.getElementById("auth-switch");
+    const confirmRow = document.getElementById("auth-confirm-row");
+    document.getElementById("auth-error").classList.add("hidden");
+
+    if (mode === "signup") {
+        title.textContent = "Create Account";
+        submit.textContent = "Sign Up";
+        switchBtn.textContent = "Already have an account? Sign In";
+        switchBtn.setAttribute("onclick", "switchAuthMode('signin')");
+        confirmRow.classList.add("hidden");
+    } else if (mode === "confirm") {
+        title.textContent = "Verify Email";
+        submit.textContent = "Confirm";
+        confirmRow.classList.remove("hidden");
+    } else {
+        title.textContent = "Sign In";
+        submit.textContent = "Sign In";
+        switchBtn.textContent = "Need an account? Sign Up";
+        switchBtn.setAttribute("onclick", "switchAuthMode('signup')");
+        confirmRow.classList.add("hidden");
+    }
+}
+
+function handleAuth() {
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+    const errorEl = document.getElementById("auth-error");
+    errorEl.classList.add("hidden");
+
+    if (!email || !password) { showAuthError("Email and password required."); return; }
+
+    if (authMode === "signup") {
+        signUp(email, password);
+    } else if (authMode === "confirm") {
+        confirmSignUp(email);
+    } else {
+        signIn(email, password);
+    }
+}
+
+function signUp(email, password) {
+    const userPool = getUserPool();
+    const attributeList = [
+        new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email })
+    ];
+    userPool.signUp(email, password, attributeList, null, (err, result) => {
+        if (err) { showAuthError(err.message); return; }
+        toast("✅", "Account created! Check email for verification code.");
+        switchAuthMode("confirm");
+    });
+}
+
+function confirmSignUp(email) {
+    const code = document.getElementById("auth-code").value.trim();
+    if (!code) { showAuthError("Enter the verification code from your email."); return; }
+    const userPool = getUserPool();
+    const userData = { Username: email, Pool: userPool };
+    const cogUser = new AmazonCognitoIdentity.CognitoUser(userData);
+    cogUser.confirmRegistration(code, true, (err, result) => {
+        if (err) { showAuthError(err.message); return; }
+        toast("✅", "Email verified! You can now sign in.");
+        switchAuthMode("signin");
+    });
+}
+
+function signIn(email, password) {
+    const userPool = getUserPool();
+    const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: password });
+    const userData = { Username: email, Pool: userPool };
+    const cogUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+    cogUser.authenticateUser(authDetails, {
+        onSuccess: (session) => {
+            cognitoUser = cogUser;
+            localStorage.setItem("dc_cognito_email", email);
+            onSignedIn(email);
+            closeAuthModal();
+        },
+        onFailure: (err) => { showAuthError(err.message); }
+    });
+}
+
+function onSignedIn(email) {
+    const btn = document.getElementById("auth-btn");
+    btn.textContent = "Sign Out";
+    btn.setAttribute("onclick", "signOut()");
+    btn.classList.remove("bg-brand-600");
+    btn.classList.add("bg-gray-600");
+    toast("✅", `Signed in as ${email}`);
+    // Auto-fill email in profile
+    const emailInput = document.getElementById("input-email");
+    if (emailInput && !emailInput.value) emailInput.value = email;
+}
+
+function signOut() {
+    const userPool = getUserPool();
+    const currentUser = userPool.getCurrentUser();
+    if (currentUser) currentUser.signOut();
+    cognitoUser = null;
+    localStorage.removeItem("dc_cognito_email");
+    const btn = document.getElementById("auth-btn");
+    btn.textContent = "Sign In";
+    btn.setAttribute("onclick", "showAuthModal()");
+    btn.classList.add("bg-brand-600");
+    btn.classList.remove("bg-gray-600");
+    toast("👋", "Signed out.");
+}
+
+function checkExistingSession() {
+    const userPool = getUserPool();
+    const currentUser = userPool.getCurrentUser();
+    if (currentUser) {
+        currentUser.getSession((err, session) => {
+            if (!err && session && session.isValid()) {
+                cognitoUser = currentUser;
+                const email = localStorage.getItem("dc_cognito_email") || "";
+                onSignedIn(email);
+            }
+        });
+    }
+}
+
+function showAuthError(msg) {
+    const el = document.getElementById("auth-error");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+}
+
+// Check for existing Cognito session on load
+document.addEventListener("DOMContentLoaded", () => { setTimeout(checkExistingSession, 500); });
