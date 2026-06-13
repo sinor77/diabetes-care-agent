@@ -11,84 +11,101 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /**
- * Initialize or restore a chat session.
+ * Initialize a chat session.
  */
 async function initSession() {
-    // Try to restore from localStorage
-    sessionId = localStorage.getItem("diabetes_session_id");
-    if (!sessionId) {
-        await startNewSession();
-    }
-}
-
-/**
- * Start a fresh session.
- */
-async function startNewSession() {
     try {
         const response = await fetch(`${CONFIG.API_ENDPOINT}/session`);
         if (response.ok) {
             const data = await response.json();
             sessionId = data.session_id;
         } else {
-            // Fallback: generate locally
             sessionId = crypto.randomUUID();
         }
     } catch (error) {
-        // Offline or API not configured — generate locally
         sessionId = crypto.randomUUID();
     }
-    localStorage.setItem("diabetes_session_id", sessionId);
+}
 
-    // Clear chat (keep welcome message)
-    const chatMessages = document.getElementById("chat-messages");
-    const welcomeMessage = chatMessages.firstElementChild;
-    chatMessages.innerHTML = "";
-    if (welcomeMessage) {
-        chatMessages.appendChild(welcomeMessage);
+/**
+ * Gather all form inputs into a structured profile object.
+ */
+function gatherProfile() {
+    return {
+        name: document.getElementById("input-name").value.trim(),
+        diabetesType: document.getElementById("input-diabetes-type").value,
+        yearsWithDiabetes: document.getElementById("input-years").value,
+        age: document.getElementById("input-age").value,
+        hba1c: document.getElementById("input-hba1c").value.trim(),
+        bloodPressure: document.getElementById("input-bp").value.trim(),
+        height: document.getElementById("input-height").value.trim(),
+        weight: document.getElementById("input-weight").value.trim(),
+        medications: document.getElementById("input-medications").value.trim(),
+        goal: document.getElementById("input-goal").value.trim(),
+        goalHba1c: document.getElementById("input-goal-hba1c").value.trim(),
+        mainChallenge: document.getElementById("input-challenge").value.trim(),
+        question: document.getElementById("input-question").value.trim(),
+    };
+}
+
+/**
+ * Build a comprehensive prompt from the user profile.
+ */
+function buildPrompt(profile) {
+    let prompt = `Patient Profile:\n`;
+    if (profile.name) prompt += `- Name: ${profile.name}\n`;
+    prompt += `- Diabetes Type: ${profile.diabetesType}\n`;
+    prompt += `- Years with Diabetes: ${profile.yearsWithDiabetes}\n`;
+    prompt += `- Age: ${profile.age}\n`;
+    if (profile.hba1c) prompt += `- Current HbA1c: ${profile.hba1c}%\n`;
+    if (profile.bloodPressure) prompt += `- Blood Pressure: ${profile.bloodPressure}\n`;
+    if (profile.height) prompt += `- Height: ${profile.height}\n`;
+    if (profile.weight) prompt += `- Weight: ${profile.weight}\n`;
+    if (profile.medications) prompt += `- Current Medications: ${profile.medications}\n`;
+    if (profile.goal) prompt += `- Goal: ${profile.goal}\n`;
+    if (profile.goalHba1c) prompt += `- Goal HbA1c: ${profile.goalHba1c}%\n`;
+    if (profile.mainChallenge) prompt += `- Main Challenge: ${profile.mainChallenge}\n`;
+
+    prompt += `\nPlease provide a comprehensive analysis with the following sections clearly labeled:\n`;
+    prompt += `1. **INSTANT DIABETES ANALYSIS**: A personalized assessment of their current diabetes status, risks, and actionable recommendations based on all provided metrics.\n`;
+    prompt += `2. **5-YEAR COMPLICATION RISK**: Based on their HbA1c, years with diabetes, age, and blood pressure, estimate their risk for complications (retinopathy, neuropathy, nephropathy, cardiovascular) over 5 years.\n`;
+    prompt += `3. **HBA1C IMPROVEMENT IMPACT**: Explain what reducing their HbA1c from ${profile.hba1c || "current level"}% to ${profile.goalHba1c || "target"}% would mean for their health outcomes, risk reduction percentages, and quality of life.\n`;
+
+    if (profile.question) {
+        prompt += `4. **AI COACHING RESPONSE**: Answer this specific question: ${profile.question}\n`;
+    } else {
+        prompt += `4. **AI COACHING RESPONSE**: Provide 3 personalized daily tips they can start today based on their profile and main challenge.\n`;
     }
 
-    // Reset dashboard
-    resetDashboard();
+    return prompt;
 }
 
 /**
- * Handle keyboard shortcuts in the input.
+ * Run the full AI analysis.
  */
-function handleKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
+async function runAnalysis() {
+    if (isLoading) return;
+
+    const profile = gatherProfile();
+
+    // Validate minimum inputs
+    if (!profile.name && !profile.hba1c && !profile.question) {
+        alert("Please fill in at least your name, HbA1c, or ask a question.");
+        return;
     }
-}
 
-/**
- * Pre-fill input with a quick prompt.
- */
-function quickPrompt(text) {
-    const input = document.getElementById("message-input");
-    input.value = text;
-    input.focus();
-}
-
-/**
- * Send a message to the API.
- */
-async function sendMessage() {
-    const input = document.getElementById("message-input");
-    const message = input.value.trim();
-
-    if (!message || isLoading) return;
-
-    // Add user message to chat
-    appendMessage("user", message);
-    input.value = "";
-    input.style.height = "auto";
-
-    // Show typing indicator
-    const typingId = showTypingIndicator();
     isLoading = true;
-    updateSendButton(true);
+    const btn = document.getElementById("analyze-btn");
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner"></div> Analyzing...`;
+
+    // Show loading in all panels
+    setLoading("output-analysis");
+    setLoading("output-risk");
+    setLoading("output-improvement");
+    setLoading("output-chat");
+
+    const prompt = buildPrompt(profile);
 
     try {
         const response = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
@@ -98,273 +115,114 @@ async function sendMessage() {
                 "X-Session-Id": sessionId,
             },
             body: JSON.stringify({
-                message: message,
+                message: prompt,
                 session_id: sessionId,
             }),
         });
 
-        removeTypingIndicator(typingId);
-
         if (response.ok) {
             const data = await response.json();
-            appendMessage("assistant", data.response);
-
-            // Update dashboard with tool outputs
-            if (data.tool_outputs && data.tool_outputs.length > 0) {
-                updateDashboard(data.tool_outputs);
-            }
+            parseAndDisplayResults(data.response);
         } else {
             const errorData = await response.json().catch(() => ({}));
-            appendMessage("error", errorData.error || `Error: ${response.status} ${response.statusText}`);
+            const errorMsg = errorData.error || `Error ${response.status}: ${response.statusText}`;
+            setError("output-analysis", errorMsg);
+            setError("output-risk", errorMsg);
+            setError("output-improvement", errorMsg);
+            setError("output-chat", errorMsg);
         }
     } catch (error) {
-        removeTypingIndicator(typingId);
-
-        if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-            appendMessage("error",
-                "Unable to connect to the API. Please check that:\n" +
-                "1. The API endpoint is configured in config.js\n" +
-                "2. The SAM stack is deployed\n" +
-                "3. CORS is enabled on the API Gateway"
-            );
-        } else {
-            appendMessage("error", `Connection error: ${error.message}`);
-        }
+        const errorMsg = "Unable to connect to the AI service. Please check your connection and try again.";
+        setError("output-analysis", errorMsg);
+        setError("output-risk", errorMsg);
+        setError("output-improvement", errorMsg);
+        setError("output-chat", errorMsg);
     } finally {
         isLoading = false;
-        updateSendButton(false);
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate AI Analysis`;
     }
 }
 
 /**
- * Append a message to the chat.
+ * Parse the AI response and split it into the 4 output panels.
  */
-function appendMessage(role, content) {
-    const chatMessages = document.getElementById("chat-messages");
-    const messageDiv = document.createElement("div");
-    messageDiv.className = "flex gap-3 message-enter";
-
-    if (role === "user") {
-        messageDiv.innerHTML = `
-            <div class="ml-auto max-w-[80%]">
-                <div class="bg-primary-600 text-white rounded-2xl rounded-tr-md px-4 py-3">
-                    <p class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(content)}</p>
-                </div>
-            </div>
-        `;
-    } else if (role === "assistant") {
-        messageDiv.innerHTML = `
-            <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                <span class="text-sm">🩺</span>
-            </div>
-            <div class="bg-white rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-gray-100 max-w-[80%]">
-                <div class="text-gray-800 text-sm leading-relaxed prose prose-sm">${formatMarkdown(content)}</div>
-            </div>
-        `;
-    } else if (role === "error") {
-        messageDiv.innerHTML = `
-            <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                <span class="text-sm">⚠️</span>
-            </div>
-            <div class="bg-red-50 rounded-2xl rounded-tl-md px-4 py-3 border border-red-200 max-w-[80%]">
-                <p class="text-red-800 text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(content)}</p>
-            </div>
-        `;
+function parseAndDisplayResults(text) {
+    if (!text) {
+        setError("output-analysis", "No response received from the AI.");
+        return;
     }
 
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
+    // Try to split by section headers
+    const sections = {
+        analysis: "",
+        risk: "",
+        improvement: "",
+        chat: "",
+    };
 
-/**
- * Show typing indicator.
- */
-function showTypingIndicator() {
-    const chatMessages = document.getElementById("chat-messages");
-    const id = "typing-" + Date.now();
-    const div = document.createElement("div");
-    div.id = id;
-    div.className = "flex gap-3 message-enter";
-    div.innerHTML = `
-        <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-            <span class="text-sm">🩺</span>
-        </div>
-        <div class="bg-white rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-gray-100">
-            <div class="flex gap-1.5 items-center py-1">
-                <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-            </div>
-        </div>
-    `;
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    return id;
-}
+    // Match sections by numbered headers or keywords
+    const analysisMatch = text.match(/(?:1\.\s*\*?\*?INSTANT DIABETES ANALYSIS\*?\*?[:\s]*)([\s\S]*?)(?=2\.\s*\*?\*?5-YEAR|$)/i);
+    const riskMatch = text.match(/(?:2\.\s*\*?\*?5-YEAR COMPLICATION RISK\*?\*?[:\s]*)([\s\S]*?)(?=3\.\s*\*?\*?HBA1C|$)/i);
+    const improvementMatch = text.match(/(?:3\.\s*\*?\*?HBA1C IMPROVEMENT\*?\*?[:\s]*)([\s\S]*?)(?=4\.\s*\*?\*?AI COACHING|$)/i);
+    const chatMatch = text.match(/(?:4\.\s*\*?\*?AI COACHING RESPONSE\*?\*?[:\s]*)([\s\S]*?)$/i);
 
-/**
- * Remove typing indicator.
- */
-function removeTypingIndicator(id) {
-    const el = document.getElementById(id);
-    if (el) el.remove();
-}
-
-/**
- * Update send button state.
- */
-function updateSendButton(loading) {
-    const btn = document.getElementById("send-button");
-    btn.disabled = loading;
-    if (loading) {
-        btn.innerHTML = '<div class="spinner"></div>';
+    if (analysisMatch || riskMatch || improvementMatch || chatMatch) {
+        sections.analysis = analysisMatch ? analysisMatch[1].trim() : "";
+        sections.risk = riskMatch ? riskMatch[1].trim() : "";
+        sections.improvement = improvementMatch ? improvementMatch[1].trim() : "";
+        sections.chat = chatMatch ? chatMatch[1].trim() : "";
     } else {
-        btn.innerHTML = `
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-            </svg>
-        `;
+        // Couldn't parse sections — put everything in analysis
+        sections.analysis = text;
+        sections.risk = "Analysis included above.";
+        sections.improvement = "Analysis included above.";
+        sections.chat = "Analysis included above.";
     }
+
+    // Render each section
+    renderOutput("output-analysis", sections.analysis || "No data available for this section.");
+    renderOutput("output-risk", sections.risk || "Insufficient data to calculate risk. Please provide HbA1c, age, and blood pressure.");
+    renderOutput("output-improvement", sections.improvement || "Please provide current and goal HbA1c values.");
+    renderOutput("output-chat", sections.chat || "No specific question was asked.");
 }
 
 /**
- * Update dashboard with tool outputs.
+ * Render formatted output in a panel.
  */
-function updateDashboard(toolOutputs) {
-    const container = document.getElementById("dashboard-cards");
-    // Show dashboard on mobile via a class toggle if needed
-    document.getElementById("dashboard-panel").classList.remove("hidden");
-    document.getElementById("dashboard-panel").classList.add("lg:block");
-
-    // Clear placeholder
-    if (container.querySelector(".text-center")) {
-        container.innerHTML = "";
-    }
-
-    for (const tool of toolOutputs) {
-        let parsedOutput;
-        try {
-            parsedOutput = JSON.parse(tool.output);
-        } catch {
-            parsedOutput = { raw: tool.output };
-        }
-
-        const card = document.createElement("div");
-        card.className = "dashboard-card bg-gray-50 rounded-xl p-4 border border-gray-100";
-
-        const toolName = tool.tool || "Tool";
-        const icon = getToolIcon(toolName);
-
-        let cardContent = `
-            <div class="flex items-center gap-2 mb-2">
-                <span>${icon}</span>
-                <span class="text-xs font-medium text-gray-700">${formatToolName(toolName)}</span>
-                <span class="text-xs text-gray-400 ml-auto">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-            </div>
-        `;
-
-        // Render based on tool type
-        if (parsedOutput.meal_summary) {
-            cardContent += renderMealCard(parsedOutput);
-        } else if (parsedOutput.summary && parsedOutput.interpretations) {
-            cardContent += renderLabCard(parsedOutput);
-        } else if (parsedOutput.overall_risk) {
-            cardContent += renderRiskCard(parsedOutput);
-        } else if (parsedOutput.nutrition_plan) {
-            cardContent += renderPlanCard(parsedOutput);
-        } else {
-            cardContent += `<p class="text-xs text-gray-600">${JSON.stringify(parsedOutput).substring(0, 200)}...</p>`;
-        }
-
-        card.innerHTML = cardContent;
-        container.insertBefore(card, container.firstChild);
-    }
-}
-
-function renderMealCard(data) {
-    const summary = data.meal_summary;
-    const impactColor = summary.overall_impact === "low" ? "risk-low" : summary.overall_impact === "moderate" ? "risk-moderate" : "risk-high";
-    return `
-        <div class="space-y-2">
-            <div class="flex justify-between items-center">
-                <span class="text-xs text-gray-600">Glycemic Load</span>
-                <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${impactColor}">${summary.total_glycemic_load} (${summary.overall_impact})</span>
-            </div>
-            <div class="flex justify-between items-center">
-                <span class="text-xs text-gray-600">Total Carbs</span>
-                <span class="text-xs font-medium text-gray-800">${summary.total_carbohydrates_grams}g</span>
-            </div>
-        </div>
-    `;
-}
-
-function renderLabCard(data) {
-    const s = data.summary;
-    return `
-        <div class="space-y-1.5">
-            <div class="flex justify-between text-xs">
-                <span class="text-gray-600">Metrics analyzed</span>
-                <span class="font-medium">${s.total_metrics_analyzed}</span>
-            </div>
-            ${s.urgent_flags > 0 ? `<div class="flex justify-between text-xs"><span class="text-red-600">⚠️ Urgent flags</span><span class="font-medium text-red-700">${s.urgent_flags}</span></div>` : ''}
-            ${s.concerning_results > 0 ? `<div class="flex justify-between text-xs"><span class="text-amber-600">⚡ Concerning</span><span class="font-medium text-amber-700">${s.concerning_results}</span></div>` : ''}
-            <div class="flex justify-between text-xs">
-                <span class="text-green-600">✓ Normal</span>
-                <span class="font-medium text-green-700">${s.within_normal}</span>
-            </div>
-        </div>
-    `;
-}
-
-function renderRiskCard(data) {
-    const risk = data.overall_risk;
-    const color = risk.level === "low" ? "risk-low" : risk.level === "moderate" ? "risk-moderate" : "risk-high";
-    return `
-        <div class="space-y-2">
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${color}">${risk.level.toUpperCase()} RISK</span>
-            </div>
-            <p class="text-xs text-gray-600 leading-relaxed">${risk.message.substring(0, 120)}${risk.message.length > 120 ? '...' : ''}</p>
-        </div>
-    `;
-}
-
-function renderPlanCard(data) {
-    const actions = data.priority_actions || [];
-    return `
-        <div class="space-y-1.5">
-            <p class="text-xs font-medium text-gray-700">Priority Actions:</p>
-            ${actions.length > 0 ? actions.slice(0, 3).map(a => `<p class="text-xs text-gray-600">• ${a}</p>`).join('') : '<p class="text-xs text-gray-500">No urgent actions. Keep up the good work!</p>'}
-        </div>
-    `;
-}
-
-function resetDashboard() {
-    const container = document.getElementById("dashboard-cards");
-    container.innerHTML = `
-        <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
-            <p class="text-xs text-gray-500 text-center py-6">
-                Insights will appear here as you interact with the assistant.
-            </p>
-        </div>
-    `;
-}
-
-function getToolIcon(name) {
-    const lower = name.toLowerCase();
-    if (lower.includes("meal")) return "🥗";
-    if (lower.includes("lab")) return "🧪";
-    if (lower.includes("risk")) return "⚡";
-    if (lower.includes("plan")) return "📋";
-    return "🔧";
-}
-
-function formatToolName(name) {
-    return name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+function renderOutput(elementId, text) {
+    const el = document.getElementById(elementId);
+    el.innerHTML = `<div class="prose prose-sm max-w-none">${formatMarkdown(text)}</div>`;
+    el.classList.add("message-enter");
 }
 
 /**
- * Basic markdown formatting.
+ * Show loading state.
+ */
+function setLoading(elementId) {
+    const el = document.getElementById(elementId);
+    el.innerHTML = `
+        <div class="flex items-center justify-center py-8 gap-3">
+            <div class="spinner"></div>
+            <span class="text-sm text-gray-400">AI is analyzing your data...</span>
+        </div>
+    `;
+}
+
+/**
+ * Show error state.
+ */
+function setError(elementId, message) {
+    const el = document.getElementById(elementId);
+    el.innerHTML = `
+        <div class="bg-red-50 rounded-xl p-4 border border-red-200">
+            <p class="text-sm text-red-700">⚠️ ${escapeHtml(message)}</p>
+        </div>
+    `;
+}
+
+/**
+ * Format markdown text to HTML.
  */
 function formatMarkdown(text) {
     if (!text) return "";
@@ -372,12 +230,20 @@ function formatMarkdown(text) {
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
+        .replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>")
         .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.*?)\*/g, "<em>$1</em>")
-        .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-xs">$1</code>')
-        .replace(/\n- /g, "\n• ")
-        .replace(/\n\d+\. /g, (match) => "\n" + match.trim() + " ")
-        .replace(/\n/g, "<br>");
+        .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">$1</code>')
+        .replace(/^### (.*$)/gm, '<h4 class="font-semibold text-gray-900 mt-3 mb-1">$1</h4>')
+        .replace(/^## (.*$)/gm, '<h3 class="font-semibold text-gray-900 text-base mt-4 mb-2">$1</h3>')
+        .replace(/^# (.*$)/gm, '<h2 class="font-bold text-gray-900 text-lg mt-4 mb-2">$1</h2>')
+        .replace(/^- (.*$)/gm, '<li class="ml-4 list-disc text-gray-700">$1</li>')
+        .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 list-decimal text-gray-700">$2</li>')
+        .replace(/(<li.*<\/li>\n?)+/g, '<ul class="space-y-1 my-2">$&</ul>')
+        .replace(/\n\n/g, '</p><p class="mb-2">')
+        .replace(/\n/g, "<br>")
+        .replace(/^/, '<p class="mb-2">')
+        .replace(/$/, '</p>');
 }
 
 /**
