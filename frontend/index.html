@@ -244,7 +244,10 @@
                 <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="font-bold text-gray-900">Your Daily Plan</h2>
-                        <button onclick="speakSection('out-plan')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                        <div class="flex gap-1">
+                            <button onclick="speakSection('out-plan')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                            <button onclick="sendSMS('plan')" class="text-xs px-3 py-1.5 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg hover:bg-brand-100 transition" title="Send to phone via SMS">📱 Send SMS</button>
+                        </div>
                     </div>
                     <div id="out-plan" class="output-box"><p class="placeholder-text">Fill your profile and preferences, then generate.</p></div>
                 </div>
@@ -263,7 +266,10 @@
                 <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="font-bold text-gray-900">AI Response</h2>
-                        <button onclick="speakSection('out-coach')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                        <div class="flex gap-1">
+                            <button onclick="speakSection('out-coach')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                            <button onclick="sendSMS('coach')" class="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition" title="Send to phone via SMS">📱 Send SMS</button>
+                        </div>
                     </div>
                     <div id="out-coach" class="output-box"><p class="placeholder-text">Ask a question to get personalized coaching.</p></div>
                 </div>

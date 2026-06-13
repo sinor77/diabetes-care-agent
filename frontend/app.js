@@ -406,6 +406,38 @@ Medications: ${p.meds||"unknown"}. Challenge: ${p.challenge||"not specified"}.`;
     return null;
 }
 
+// ========== SMS via SNS ==========
+async function sendSMS(tool) {
+    const content = results[tool];
+    if (!content) { toast("⚠️", "Generate the analysis first."); return; }
+
+    const phone = prompt("Enter phone number with country code (e.g., +60123456789):");
+    if (!phone || !phone.startsWith("+")) { toast("⚠️", "Invalid phone. Use format: +60123456789"); return; }
+
+    // Truncate to 1600 chars for SMS (SNS limit)
+    const smsText = content.replace(/[#*_`]/g, "").substring(0, 1500) + (content.length > 1500 ? "\n\n[Truncated - view full report in app]" : "");
+    const label = tool === "plan" ? "Daily Plan" : "AI Coaching";
+
+    toast("📱", "Sending SMS...");
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/sms-reminder`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone, message: `🩺 DiabetesControl AI - ${label}:\n\n${smsText}` }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === "sent") toast("✅", `SMS sent to ${phone}!`);
+            else toast("⚠️", data.error || "SMS failed.");
+        } else {
+            const err = await res.json().catch(() => ({}));
+            toast("⚠️", err.error || "SMS failed.");
+        }
+    } catch (e) {
+        toast("⚠️", "Connection error. Try again.");
+    }
+}
+
 // ========== EMAIL ==========
 async function sendEmailReport() {
     const email = v("input-email");
