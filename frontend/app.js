@@ -1,6 +1,7 @@
 /**
  * DiabetesControl AI Expert
  * Tabbed interface — each tool has dedicated AI calls.
+ * Features: Cognito auth, Polly TTS, DynamoDB profiles, chat history, dark theme
  */
 
 let sessionId = null;
@@ -9,12 +10,14 @@ let labImageBase64 = "";
 let labImageType = "image/jpeg";
 let labFileText = "";
 let results = {};
+let chatHistory = []; // AI Coach chat messages
 
 document.addEventListener("DOMContentLoaded", () => {
     initSession();
     loadProfile();
     setupTabs();
     loadLatestInsight();
+    loadTheme();
 });
 
 // ========== SESSION ==========
@@ -124,7 +127,7 @@ function applyProfile(p) {
     localStorage.setItem("dc_profile", JSON.stringify(p));
     showBadge(p.name);
     renderProfileOverview();
-    if (p.name) toast("👤", `Welcome back, ${p.name}!`);
+    loadUserData(p);
 }
 
 function deleteProfile() {
@@ -382,14 +385,170 @@ Be encouraging but honest. Use specific numbers where possible.`;
             el.innerHTML = formatMd(data.response);
             document.getElementById("email-btn").disabled = false;
 
-            // Persist insight to localStorage so it survives refresh
+            // Persist insight
             localStorage.setItem("dc_latest_insight", data.response);
             renderLatestInsight(data.response);
+            // Save insights to cloud
+            saveUserData();
         } else {
             const err = await res.json().catch(() => ({}));
             el.innerHTML = errBox(err.error || "Error");
         }
     } catch(e) { el.innerHTML = errBox(e.message); }
+}
+
+// ========== AI COACH CHAT ==========
+async function sendCoachMessage() {
+    const input = document.getElementById("coach-input");
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = "";
+
+    // Add user message to UI
+    addChatBubble("user", msg);
+    chatHistory.push({ role: "user", text: msg });
+
+    // Build context-aware prompt
+    const p = getProfile();
+    const ctx = `Patient: ${p.name||"User"}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years. HbA1c: ${p.hba1c||"?"}%, BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg. Meds: ${p.meds||"unknown"}. Challenge: ${p.challenge||"?"}.`;
+    const analysisCtx = Object.entries(results).filter(([k,v])=>v).map(([k,v])=>`[${k} analysis]: ${v.substring(0,300)}`).join("\n");
+    const recentChat = chatHistory.slice(-6).map(m => `${m.role}: ${m.text}`).join("\n");
+
+    const prompt = `You are a compassionate diabetes coach chatbot. DO NOT call any tools. Respond directly.
+
+PATIENT CONTEXT:
+${ctx}
+
+RECENT ANALYSES (for reference):
+${analysisCtx || "None yet"}
+
+CONVERSATION HISTORY:
+${recentChat}
+
+Current question: "${msg}"
+
+Respond naturally as a chatbot. Be concise (2-4 sentences unless detail is needed). Use the patient context and analyses to give personalized answers. Be warm and encouraging.`;
+
+    // Show typing indicator
+    const typingId = "typing-" + Date.now();
+    const container = document.getElementById("coach-messages");
+    const typingEl = document.createElement("div");
+    typingEl.id = typingId;
+    typingEl.className = "flex gap-2";
+    typingEl.innerHTML = `<div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-sm flex-shrink-0">🤖</div><div class="bg-gray-100 dark:bg-gray-700 rounded-xl px-3 py-2 text-sm text-gray-500"><span class="animate-pulse">Thinking...</span></div>`;
+    container.appendChild(typingEl);
+    container.scrollTop = container.scrollHeight;
+
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: prompt, session_id: sessionId }),
+        });
+        document.getElementById(typingId)?.remove();
+        if (res.ok) {
+            const data = await res.json();
+            addChatBubble("bot", data.response);
+            chatHistory.push({ role: "bot", text: data.response });
+            saveUserData();
+            if (ttsEnabled) speakSection("coach-messages");
+        } else {
+            addChatBubble("bot", "Sorry, I couldn't process that. Try again.");
+        }
+    } catch(e) {
+        document.getElementById(typingId)?.remove();
+        addChatBubble("bot", "Connection error. Please try again.");
+    }
+}
+
+function addChatBubble(role, text) {
+    const container = document.getElementById("coach-messages");
+    const div = document.createElement("div");
+    div.className = "flex gap-2" + (role === "user" ? " justify-end" : "");
+    if (role === "user") {
+        div.innerHTML = `<div class="bg-blue-600 text-white rounded-xl rounded-tr-sm px-3 py-2 text-sm max-w-[80%]">${esc(text)}</div>`;
+    } else {
+        div.innerHTML = `<div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-sm flex-shrink-0">🤖</div><div class="bg-gray-100 dark:bg-gray-700 rounded-xl rounded-tl-sm px-3 py-2 text-sm text-gray-700 dark:text-gray-200 max-w-[80%]">${formatMd(text)}</div>`;
+    }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function clearChat() {
+    if (!confirm("Clear chat history?")) return;
+    chatHistory = [];
+    const container = document.getElementById("coach-messages");
+    container.innerHTML = `<div class="flex gap-2"><div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-sm flex-shrink-0">🤖</div><div class="bg-gray-100 dark:bg-gray-700 rounded-xl rounded-tl-sm px-3 py-2 text-sm text-gray-700 dark:text-gray-200 max-w-[80%]">Chat cleared. Ask me anything!</div></div>`;
+    saveUserData();
+    toast("🗑️", "Chat cleared.");
+}
+
+function loadChatHistory() {
+    if (!chatHistory.length) return;
+    const container = document.getElementById("coach-messages");
+    container.innerHTML = "";
+    // Add welcome
+    addChatBubble("bot", "Welcome back! I remember our conversation. How can I help today?");
+    // Replay history
+    chatHistory.forEach(m => addChatBubble(m.role, m.text));
+}
+
+// ========== DATA PERSISTENCE (per user) ==========
+function saveUserData() {
+    const authEmail = localStorage.getItem("dc_cognito_email");
+    if (!authEmail) return;
+
+    const userData = {
+        email: authEmail,
+        insights: results.insights || null,
+        chatHistory: chatHistory.slice(-50), // Keep last 50 messages
+        results: Object.fromEntries(Object.entries(results).map(([k,v]) => [k, v?.substring(0, 2000)])),
+    };
+
+    fetch(`${CONFIG.API_ENDPOINT}/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...getProfile(), _userData: JSON.stringify(userData) }),
+    }).catch(() => {});
+}
+
+function loadUserData(profile) {
+    if (!profile || !profile._userData) return;
+    try {
+        const data = JSON.parse(profile._userData);
+        if (data.insights) {
+            results.insights = data.insights;
+            localStorage.setItem("dc_latest_insight", data.insights);
+            renderLatestInsight(data.insights);
+            const el = document.getElementById("out-insights");
+            if (el) el.innerHTML = formatMd(data.insights);
+        }
+        if (data.chatHistory && data.chatHistory.length) {
+            chatHistory = data.chatHistory;
+            loadChatHistory();
+        }
+        if (data.results) {
+            Object.entries(data.results).forEach(([k, v]) => {
+                if (v && !results[k]) results[k] = v;
+            });
+        }
+    } catch(e) { console.error("loadUserData error:", e); }
+}
+
+// ========== THEME ==========
+function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.classList.toggle("dark");
+    localStorage.setItem("dc_theme", isDark ? "dark" : "light");
+    document.getElementById("theme-icon").textContent = isDark ? "☀️" : "🌙";
+}
+
+function loadTheme() {
+    const saved = localStorage.getItem("dc_theme");
+    if (saved === "dark") {
+        document.documentElement.classList.add("dark");
+        document.getElementById("theme-icon").textContent = "☀️";
+    }
 }
 
 function renderLatestInsight(text) {

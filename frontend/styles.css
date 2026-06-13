@@ -34,3 +34,21 @@
 .output-box h4{font-size:0.875rem}
 .output-box ul,.output-box ol{padding-left:1.25rem;margin:0.5rem 0}
 .output-box li{margin-bottom:0.25rem}
+
+
+/* Dark mode */
+.dark .inp{background:#1f2937;border-color:#374151;color:#f3f4f6}
+.dark .inp:focus{border-color:#22c55e}
+.dark .tab-btn{color:#9ca3af}
+.dark .tab-btn:hover{background:#374151}
+.dark .tab-btn.active{background:#14532d;color:#86efac;border-color:#166534}
+.dark .output-box{color:#e5e7eb}
+.dark .output-box strong{color:#f3f4f6}
+.dark .output-box h2,.dark .output-box h3,.dark .output-box h4{color:#f3f4f6}
+.dark .lbl{color:#9ca3af}
+.dark .placeholder-text{color:#6b7280}
+.dark .stat-card{background:#1f2937;border-color:#374151}
+.dark .stat-label{color:#9ca3af}
+.dark .stat-value{color:#f3f4f6}
+.dark nav{background:#111827;border-color:#374151}
+.dark #coach-messages::-webkit-scrollbar-thumb{background:#4b5563}

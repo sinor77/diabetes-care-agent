@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles.css">
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -19,10 +20,10 @@
         }
     </script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300">
 
     <!-- Top Nav -->
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background-color: rgb(172, 255, 203);">
@@ -31,7 +32,10 @@
                 <span class="font-bold text-gray-900 text-lg">Diabetes Control app powered by AI Agent</span>
             </div>
             <div class="flex items-center gap-2">
-                <button id="tts-btn" onclick="toggleTTS()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 hover:bg-gray-100 transition" title="Text-to-Speech (Amazon Polly)">
+                <button id="theme-btn" onclick="toggleTheme()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700 transition" title="Toggle theme">
+                    <span id="theme-icon">🌙</span>
+                </button>
+                <button id="tts-btn" onclick="toggleTTS()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700 transition" title="Text-to-Speech (Amazon Polly)">
                     🔊 <span id="tts-label">Off</span>
                 </button>
                 <span id="profile-badge" class="hidden px-3 py-1.5 rounded-full text-xs bg-brand-50 text-brand-700 border border-brand-200">
@@ -45,7 +49,7 @@
     </nav>
 
     <!-- Tab Navigation -->
-    <div class="bg-white border-b border-gray-200 sticky top-[57px] z-40">
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-[57px] z-40">
         <div class="max-w-6xl mx-auto px-4">
             <div class="flex gap-1 overflow-x-auto py-2" id="tab-bar">
                 <button class="tab-btn active" data-tab="overview">📊 Overview</button>
@@ -267,19 +271,28 @@
 
         <!-- TAB: AI Coach -->
         <section id="tab-coach" class="tab-content hidden">
-            <div class="grid md:grid-cols-5 gap-6">
-                <div class="md:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
-                    <h2 class="font-bold text-gray-900 mb-1">Ask Your AI Coach</h2>
-                    <p class="text-xs text-gray-500 mb-4">Ask anything about your diabetes management.</p>
-                    <textarea id="coach-input" rows="6" class="inp resize-none" placeholder="Examples:&#10;- How can I prevent morning highs?&#10;- Is 150 mg/dL 2hr after lunch okay?&#10;- What snack before exercise?&#10;- Explain my HbA1c trend"></textarea>
-                    <button onclick="runSingle('coach')" class="w-full mt-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition">🤖 Ask Coach</button>
-                </div>
-                <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="font-bold text-gray-900">AI Response</h2>
-                        <button onclick="speakSection('out-coach')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 h-[600px] flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="font-bold text-gray-900 dark:text-white">🤖 AI Coach Chat</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Ask anything — the coach knows your profile, labs, meals, and analysis history.</p>
                     </div>
-                    <div id="out-coach" class="output-box"><p class="placeholder-text">Ask a question to get personalized coaching.</p></div>
+                    <div class="flex gap-2">
+                        <button onclick="speakSection('coach-messages')" class="text-sm hover:bg-gray-100 dark:hover:bg-gray-700 p-1.5 rounded-lg">🔊</button>
+                        <button onclick="clearChat()" class="text-xs px-2 py-1 text-red-600 border border-red-200 rounded-lg hover:bg-red-50">Clear</button>
+                    </div>
+                </div>
+                <div id="coach-messages" class="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
+                    <div class="flex gap-2">
+                        <div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-sm flex-shrink-0">🤖</div>
+                        <div class="bg-gray-100 dark:bg-gray-700 rounded-xl rounded-tl-sm px-3 py-2 text-sm text-gray-700 dark:text-gray-200 max-w-[80%]">
+                            Hi! I'm your diabetes coach. I have access to your profile, lab results, meal analyses, and risk assessments. Ask me anything!
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <input id="coach-input" type="text" class="inp flex-1" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendCoachMessage()">
+                    <button onclick="sendCoachMessage()" class="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-medium">Send</button>
                 </div>
             </div>
         </section>
