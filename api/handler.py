@@ -150,19 +150,31 @@ def _save_profile(email: str, profile_data: dict) -> dict:
     dynamodb = boto3.resource("dynamodb", region_name=REGION)
     table = dynamodb.Table(PROFILE_TABLE)
     import time
-    item = {**profile_data, "email": email, "updated_at": int(time.time())}
+    # Remove empty string values (DynamoDB doesn't allow them)
+    item = {"email": email, "updated_at": int(time.time())}
+    for key, value in profile_data.items():
+        if value is not None and value != "":
+            item[key] = value
     table.put_item(Item=item)
     return {"status": "saved", "email": email}
 
 
 def _load_profile(email: str) -> dict:
     """Load a user profile from DynamoDB."""
+    from decimal import Decimal
     dynamodb = boto3.resource("dynamodb", region_name=REGION)
     table = dynamodb.Table(PROFILE_TABLE)
     response = table.get_item(Key={"email": email})
     item = response.get("Item")
     if item:
-        return {"status": "found", "profile": item}
+        # Convert Decimal to int/float for JSON serialization
+        clean = {}
+        for k, val in item.items():
+            if isinstance(val, Decimal):
+                clean[k] = int(val) if val == int(val) else float(val)
+            else:
+                clean[k] = val
+        return {"status": "found", "profile": clean}
     return {"status": "not_found", "profile": None}
 
 
