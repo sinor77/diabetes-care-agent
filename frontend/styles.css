@@ -1,37 +1,19 @@
-/* DiabetesControl AI Expert - Custom Styles */
+/* DiabetesControl AI Expert */
 
-/* Smooth scrollbar */
-::-webkit-scrollbar {
-    width: 6px;
+.input-field {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    transition: all 0.2s;
 }
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-}
-
-/* Message animations */
-.message-enter {
-    animation: messageSlideIn 0.4s ease-out;
+.input-field:focus {
+    outline: none;
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
 }
 
-@keyframes messageSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Loading spinner */
 .spinner {
     border: 3px solid #e5e7eb;
     border-top: 3px solid #16a34a;
@@ -40,84 +22,47 @@
     height: 20px;
     animation: spin 0.8s linear infinite;
 }
+.spinner-sm {
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #16a34a;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
 
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-/* Range input styling */
+.message-enter {
+    animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.prose strong { color: #111827; }
+.prose h2, .prose h3, .prose h4 { color: #111827; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
 input[type="range"] {
     -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
     height: 6px;
     border-radius: 3px;
     background: #e5e7eb;
-    outline: none;
 }
-
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: #16a34a;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #16a34a;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-/* Prose formatting for AI output */
-.prose h2, .prose h3, .prose h4 {
-    color: #111827;
-}
-.prose p {
-    color: #374151;
-    line-height: 1.7;
-}
-.prose li {
-    color: #374151;
-    line-height: 1.6;
-}
-.prose strong {
-    color: #111827;
-}
-.prose ul {
-    list-style-type: disc;
-    padding-left: 1.25rem;
-}
-
-/* Button hover effects */
-button:active:not(:disabled) {
-    transform: scale(0.98);
-}
-
-/* Card hover */
-.bg-white {
-    transition: box-shadow 0.2s ease;
-}
-
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-    .grid-cols-1 {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Focus states for accessibility */
-input:focus, select:focus, textarea:focus {
-    outline: none;
-    ring: 2px;
-    ring-color: #16a34a;
 }
