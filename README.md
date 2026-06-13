@@ -1,207 +1,310 @@
-# 🩺 DiabetesControl AI Expert - Amazon Bedrock Agent
+# 🩺 DiabetesControl AI Expert
 
-A Digital Diabetes Care Assistant powered by Amazon Bedrock Agents (Claude 3 Haiku) with 4 functional Lambda-backed tools, a modern chat frontend, and one-click AWS deployment via SAM.
+A comprehensive Digital Diabetes Care Assistant powered by **14 AWS services** — built with Amazon Bedrock (Claude 3 Haiku), serverless architecture, and a modern web frontend.
+
+**Live App:** [https://d3onijdn12lthk.cloudfront.net](https://d3onijdn12lthk.cloudfront.net)
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   Frontend (S3 / Local)                      │
-│        HTML / Tailwind CSS / Vanilla JS Chat + Dashboard    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ HTTPS
-┌──────────────────────────▼──────────────────────────────────┐
-│                   API Gateway (REST)                         │
-│              POST /chat    GET /session                      │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│              Amazon Bedrock Agent                            │
-│      Model: anthropic.claude-3-haiku-20240307-v1:0             │
-│   Tone: Empathetic, evidence-based diabetes care assistant     │
-└──────────┬───────────┬───────────┬───────────┬──────────────┘
-           │           │           │           │
-   ┌───────▼──┐ ┌──────▼───┐ ┌────▼─────┐ ┌──▼───────────┐
-   │  Meal    │ │   Lab    │ │  Risk    │ │    Plan      │
-   │ Analyzer │ │Interpeter│ │Predictor │ │  Generator   │
-   │ (Lambda) │ │ (Lambda) │ │ (Lambda) │ │  (Lambda)    │
-   └──────────┘ └──────────┘ └──────────┘ └──────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              USER (Browser)                                      │
+│  ┌───────────────────────────────────────────────────────────────────────────┐  │
+│  │  Frontend SPA (HTML / Tailwind CSS / Vanilla JS)                          │  │
+│  │  • Profile Form & Auth (Cognito)   • Tabbed Analysis Interface            │  │
+│  │  • File Upload (Lab Images)        • TTS Playback (Polly Audio)           │  │
+│  │  • Real-time Pipeline Status       • Persistent localStorage             │  │
+│  └───────────────────────────────┬───────────────────────────────────────────┘  │
+└──────────────────────────────────┼──────────────────────────────────────────────┘
+                                   │ HTTPS
+                                   ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                         Amazon CloudFront (CDN + HTTPS)                           │
+│                      d3onijdn12lthk.cloudfront.net                                │
+└──────────────────────────────────┬───────────────────────────────────────────────┘
+                                   │
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+┌─────────────────────────────┐   ┌─────────────────────────────────────────────────┐
+│   Amazon S3 (Static Host)   │   │         Amazon API Gateway (REST)                │
+│   Frontend files:           │   │         /chat  /session  /profile                │
+│   index.html, app.js,       │   │         /lab-vision  /textract  /polly           │
+│   config.js, styles.css     │   │         /email-report  /comprehend-medical       │
+└─────────────────────────────┘   │         /sms-reminder                            │
+                                  └────────────────────┬────────────────────────────┘
+                                                       │
+                                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                        AWS Lambda: diabetes-care-api                              │
+│                     (Python 3.13 — Main API Handler)                              │
+│                                                                                  │
+│  Routes to:                                                                      │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+│  │  /chat   │ │/lab-vision│ │/textract │ │  /polly  │ │/profile  │ │ /email   │ │
+│  │          │ │          │ │          │ │          │ │          │ │ -report  │ │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ │
+└───────┼─────────────┼────────────┼────────────┼────────────┼────────────┼────────┘
+        │             │            │            │            │            │
+        ▼             ▼            ▼            ▼            ▼            ▼
+┌──────────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ ┌──────────┐ ┌──────────┐
+│Amazon Bedrock│ │ Bedrock  │ │ Amazon   │ │Amazon  │ │ Amazon   │ │ Amazon   │
+│   Agent      │ │ Converse │ │ Textract │ │ Polly  │ │ DynamoDB │ │   SES    │
+│(Claude Haiku)│ │API+Vision│ │  (OCR)   │ │ (TTS)  │ │(Profiles)│ │ (Email)  │
+│              │ │          │ │          │ │        │ │          │ │          │
+│ System Prompt│ │ Reads lab│ │ Extracts │ │Converts│ │Save/Load/│ │  Sends   │
+│ + Tools      │ │  images  │ │ text from│ │text to │ │Delete by │ │formatted │
+│              │ │ directly │ │  images  │ │ speech │ │  email   │ │ reports  │
+└──────┬───────┘ └──────────┘ └──────────┘ └────────┘ └──────────┘ └──────────┘
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    Amazon Bedrock Agent Runtime                                │
+│                                                                              │
+│  Agent: DiabetesControl-AI-Expert (ID: TR4NBWWQNA)                           │
+│  Model: anthropic.claude-3-haiku-20240307-v1:0                               │
+│  Alias: prod (DWSWRR9VPL)                                                    │
+│                                                                              │
+│  System Prompt: Empathetic diabetes care assistant                            │
+│  Capabilities: Meal analysis, Lab interpretation, Risk prediction,           │
+│                Plan generation, AI coaching                                   │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │              Action Group: DiabetesCareTools                            │  │
+│  │  ┌────────────┐ ┌──────────────┐ ┌──────────────┐ ┌───────────────┐   │  │
+│  │  │   Meal     │ │     Lab      │ │    Risk      │ │     Plan      │   │  │
+│  │  │  Analyzer  │ │  Interpreter │ │  Predictor   │ │   Generator   │   │  │
+│  │  │            │ │              │ │              │ │               │   │  │
+│  │  │• GI Index  │ │• ADA Ranges  │ │• Hypo Risk   │ │• Nutrition    │   │  │
+│  │  │• Carbs     │ │• Flag Values │ │• Hyper Risk  │ │• Hydration    │   │  │
+│  │  │• GL Score  │ │• Kidney/Lipid│ │• Variability │ │• Activity     │   │  │
+│  │  │• Swaps     │ │• Recommend   │ │• Actions     │ │• Monitoring   │   │  │
+│  │  └────────────┘ └──────────────┘ └──────────────┘ └───────────────┘   │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                          │
+│                                    ▼                                          │
+│                    AWS Lambda: diabetes-care-tools                             │
+│                    (Action Group Handler — OpenAPI 3.0)                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                      AWS Step Functions                                        │
+│              State Machine: DiabetesControl-FullAnalysis                       │
+│                                                                              │
+│  ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌─────────┐   ┌────┐  │
+│  │  Meal  │──▶│  Lab   │──▶│  Risk  │──▶│  Plan  │──▶│Insights │──▶│Done│  │
+│  │Analysis│   │Interpret│   │Predict │   │Generate│   │ Summary │   │ ✓  │  │
+│  └────────┘   └────────┘   └────────┘   └────────┘   └─────────┘   └────┘  │
+│                                                              │                │
+│                                                              ▼                │
+│                                                      ┌──────────────┐        │
+│                                                      │  Amazon SNS  │        │
+│                                                      │ Notification │        │
+│                                                      └──────────────┘        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                   Supporting Services                                          │
+│                                                                              │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────────────┐ │
+│  │  Amazon Cognito   │  │ Amazon CloudWatch  │  │  Amazon Comprehend Medical│ │
+│  │                   │  │                   │  │                           │ │
+│  │ User Pool:        │  │ Dashboard:         │  │ Detects from free text:  │ │
+│  │ Sign Up/In/Out    │  │ • API Requests     │  │ • Medications + dosages  │ │
+│  │ Email verification│  │ • Latency          │  │ • Medical conditions     │ │
+│  │ Session tokens    │  │ • Lambda calls     │  │ • Lab values             │ │
+│  │ Password policy   │  │ • Errors           │  │ • Procedures             │ │
+│  │                   │  │ • DynamoDB I/O     │  │                           │ │
+│  └───────────────────┘  └───────────────────┘  └───────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 14 AWS Services Used
+
+| # | Service | Purpose |
+|---|---------|---------|
+| 1 | **Amazon Bedrock** | AI Agent — Claude 3 Haiku foundation model with system prompts |
+| 2 | **AWS Lambda** | Serverless compute — API handlers + Action Group tools |
+| 3 | **Amazon API Gateway** | REST API — 9 endpoints with CORS |
+| 4 | **Amazon S3** | Static website hosting for the frontend |
+| 5 | **Amazon CloudFront** | HTTPS CDN distribution |
+| 6 | **Amazon DynamoDB** | NoSQL database for user profile persistence |
+| 7 | **Amazon SES** | Transactional email delivery for progress reports |
+| 8 | **Amazon SNS** | SMS/notification topic for reminders |
+| 9 | **Amazon Textract** | OCR — extracts text from uploaded lab images |
+| 10 | **AWS Step Functions** | Orchestrates the full 5-step analysis pipeline |
+| 11 | **Amazon CloudWatch** | Operational monitoring dashboard (6 metric widgets) |
+| 12 | **Amazon Comprehend Medical** | Healthcare NLP — extracts medications, conditions, dosages |
+| 13 | **Amazon Polly** | Neural text-to-speech (Joanna voice) |
+| 14 | **Amazon Cognito** | User authentication (sign up, email verify, sign in/out) |
+
+---
 
 ## Features
 
-- **Meal Analyzer** — Estimates glycemic impact, net carbs, glycemic load, and suggests healthier alternatives
-- **Lab Interpreter** — Parses HbA1c, Fasting Glucose, Lipid Panel against ADA clinical guidelines
-- **Risk Predictor** — Flags near-term risks (hypo/hyperglycemic events) based on meal/exercise patterns
-- **Plan Generator** — Synthesizes all tool outputs into a structured daily routine (nutrition, hydration, activity)
+### AI-Powered Analysis Tools
+- **🥗 Meal Analyzer** — Glycemic index, carb estimation, glycemic load, healthier alternatives
+- **🧪 Lab Interpreter** — Parses HbA1c, glucose, lipids, kidney markers against ADA guidelines
+- **⚡ Risk Predictor** — Flags hypoglycemia, hyperglycemia, and glucose variability risks
+- **📋 Plan Generator** — Full daily plan: nutrition, hydration, activity, monitoring
+- **🤖 AI Coach** — Free-form Q&A about diabetes management
+- **💡 Insights** — Overall health score, trends, weekly goals, personalized tips
 
-## Prerequisites
+### User Experience
+- **👤 Persistent Profiles** — Saved to DynamoDB, auto-loads on return from any device
+- **🔊 Text-to-Speech** — Amazon Polly neural voice reads analysis results aloud
+- **📧 Email Reports** — Full analysis reports sent via Amazon SES
+- **📱 SMS Notifications** — Reminders via Amazon SNS
+- **🔐 User Auth** — Sign up / sign in with Amazon Cognito
+- **📷 Lab Upload** — Upload lab photos analyzed with Textract + Claude Vision
+- **🚀 Pipeline** — One-click runs all 5 analyses via Step Functions orchestration
+- **📊 Monitoring** — Live CloudWatch dashboard for operational metrics
 
-1. **AWS Account** with Bedrock access in `ap-southeast-1` (Singapore)
-   - Uses Claude 3 Haiku via APAC inference profile (auto-enabled, no manual activation needed)
-   - Model: `anthropic.claude-3-haiku-20240307-v1:0`
-2. **AWS CLI v2** configured (`aws configure`)
-3. **AWS SAM CLI** installed — [Install Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
-4. **Python 3.11+**
-5. **Git**
-
-## IAM Policies Required
-
-Your deploying user/role needs these permissions:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "bedrock:*",
-        "lambda:*",
-        "apigateway:*",
-        "iam:CreateRole",
-        "iam:DeleteRole",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:PutRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:GetRole",
-        "iam:PassRole",
-        "iam:CreatePolicy",
-        "iam:DeletePolicy",
-        "iam:TagRole",
-        "s3:*",
-        "cloudformation:*",
-        "logs:*"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
-
-> ⚠️ For production, scope these down to least-privilege per resource ARN.
-
-## 🚀 Step-by-Step Deployment
-
-### Step 1: Clone the Repository
-
-```bash
-git clone https://github.com/YOUR_USERNAME/diabetes-care-agent.git
-cd diabetes-care-agent
-```
-
-### Step 2: Build and Deploy with SAM
-
-```bash
-sam build
-sam deploy --guided
-```
-
-During guided deployment, provide:
-- **Stack Name:** `diabetes-care-agent`
-- **Region:** `ap-southeast-1` (Singapore — matches your Bedrock access)
-- **Confirm changes:** Y
-- **Allow SAM CLI IAM role creation:** Y
-- **Save arguments to samconfig.toml:** Y
-
-### Step 3: Create the Bedrock Agent
-
-After SAM deploys the Lambda and API Gateway, run the setup script to create and configure the Bedrock Agent:
-
-```bash
-pip install boto3
-python scripts/setup_agent.py --region ap-southeast-1
-```
-
-This script will:
-1. Create the Bedrock Agent with the system prompt
-2. Create an Action Group with the OpenAPI schema
-3. Attach the Lambda function
-4. Prepare and create an alias
-5. Print the Agent ID and Alias ID
-
-### Step 4: Update API Lambda Environment
-
-```bash
-aws lambda update-function-configuration \
-  --function-name diabetes-care-api \
-  --environment "Variables={BEDROCK_AGENT_ID=<AGENT_ID>,BEDROCK_AGENT_ALIAS_ID=<ALIAS_ID>,AWS_REGION_NAME=ap-southeast-1}"
-```
-
-### Step 5: Configure Frontend
-
-Edit `frontend/config.js`:
-```javascript
-const CONFIG = {
-  API_ENDPOINT: "https://YOUR_API_ID.execute-api.ap-southeast-1.amazonaws.com/prod",
-};
-```
-
-### Step 6: Open the Frontend
-
-Open `frontend/index.html` in your browser, or deploy to S3:
-
-```bash
-aws s3 mb s3://diabetes-care-frontend-YOUR_ACCOUNT_ID
-aws s3 sync frontend/ s3://diabetes-care-frontend-YOUR_ACCOUNT_ID --acl public-read
-```
-
-## Environment Variables
-
-| Variable | Description | Set By |
-|----------|-------------|--------|
-| `BEDROCK_AGENT_ID` | Agent ID from Step 3 | SAM / Manual |
-| `BEDROCK_AGENT_ALIAS_ID` | Agent Alias ID from Step 3 | SAM / Manual |
-| `AWS_REGION_NAME` | AWS Region (e.g., us-east-1) | SAM |
+---
 
 ## Project Structure
 
 ```
 diabetes-care-agent/
 ├── README.md
-├── template.yaml                 # SAM/CloudFormation IaC
-├── samconfig.toml
+├── template.yaml                    # SAM/CloudFormation template
+├── samconfig.toml                   # SAM deployment config
+├── cloudformation.yaml              # Generated CF template
 ├── agents/
-│   └── instruction.txt           # Bedrock Agent system prompt
+│   └── instruction.txt              # Bedrock Agent system prompt
 ├── lambda/
+│   ├── handler.py                   # Action Group Lambda (tools router)
 │   ├── requirements.txt
-│   ├── handler.py                # Action Group Lambda handler
 │   └── tools/
-│       ├── __init__.py
-│       ├── meal_analyzer.py
-│       ├── lab_interpreter.py
-│       ├── risk_predictor.py
-│       └── plan_generator.py
+│       ├── meal_analyzer.py         # Glycemic analysis engine
+│       ├── lab_interpreter.py       # ADA reference range comparison
+│       ├── risk_predictor.py        # Pattern-based risk scoring
+│       └── plan_generator.py        # Daily routine builder
 ├── api/
-│   ├── requirements.txt
-│   └── handler.py                # API Gateway → Bedrock Agent proxy
+│   ├── handler.py                   # API Gateway Lambda (9 endpoints)
+│   └── requirements.txt
 ├── schemas/
-│   └── openapi.yaml              # OpenAPI 3.0 for Action Groups
+│   └── openapi.yaml                 # OpenAPI 3.0 for Bedrock Action Groups
 ├── frontend/
-│   ├── index.html
-│   ├── config.js
-│   ├── app.js
-│   └── styles.css
+│   ├── index.html                   # Main SPA (tabbed interface)
+│   ├── app.js                       # Application logic + Cognito + Polly
+│   ├── config.js                    # API endpoint + Cognito config
+│   └── styles.css                   # Custom styles
 └── scripts/
-    ├── deploy.sh
-    └── setup_agent.py
+    ├── deploy_no_sam.py             # Direct deployment (no SAM CLI needed)
+    ├── setup_agent.py               # Creates Bedrock Agent + Action Group
+    ├── deploy.sh / deploy.bat       # Shell deployment scripts
+    ├── cloudfront-config.json       # CloudFront distribution config
+    ├── cloudwatch-dashboard.json    # CloudWatch dashboard definition
+    ├── stepfunctions-definition.json # Step Functions state machine
+    └── *.json                       # IAM policies and configs
 ```
 
-## Testing Locally
+---
+
+## Deployment
+
+### Prerequisites
+- AWS Account with Bedrock access (ap-southeast-1)
+- AWS CLI v2 configured
+- Python 3.11+
+
+### Quick Deploy
 
 ```bash
-cd lambda
-pip install -r requirements.txt
-python -m pytest tests/ -v
+# Clone
+git clone https://github.com/sinor77/diabetes-care-agent.git
+cd diabetes-care-agent
+
+# Deploy infrastructure + agent (one command)
+python scripts/deploy_no_sam.py --region ap-southeast-1
 ```
 
-## Customization
+This script:
+1. Creates S3 deployment bucket
+2. Packages and uploads Lambda code
+3. Deploys CloudFormation stack (Lambda + API Gateway + IAM)
+4. Creates Bedrock Agent with system prompt
+5. Attaches Action Group with OpenAPI schema
+6. Prepares agent and creates alias
+7. Links API Lambda to agent
+8. Prints the API URL
 
-- **Model**: Change the model ID in `scripts/setup_agent.py` (default: Claude 3.5 Sonnet)
-- **System Prompt**: Edit `agents/instruction.txt` to adjust personality/tone
-- **Tools**: Add new tools in `lambda/tools/` and update `schemas/openapi.yaml`
+### Post-Deploy Setup
+```bash
+# Create DynamoDB table
+aws dynamodb create-table --table-name diabetes-care-profiles \
+  --attribute-definitions AttributeName=email,AttributeType=S \
+  --key-schema AttributeName=email,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST --region ap-southeast-1
+
+# Verify email for SES
+aws ses verify-email-identity --email-address YOUR_EMAIL --region ap-southeast-1
+
+# Create CloudFront distribution
+aws cloudfront create-distribution --distribution-config file://scripts/cloudfront-config.json
+
+# Upload frontend
+aws s3 sync frontend/ s3://YOUR-BUCKET/ --region ap-southeast-1
+```
+
+---
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /session | Generate new chat session ID |
+| POST | /chat | Send message to Bedrock Agent |
+| POST | /lab-vision | Analyze lab image with Claude Vision |
+| POST | /textract | OCR text extraction from images |
+| POST | /polly | Text-to-speech synthesis |
+| POST | /comprehend-medical | Medical entity extraction |
+| POST | /email-report | Send report via SES |
+| POST | /sms-reminder | Send SMS via SNS |
+| POST/GET/DELETE | /profile | CRUD user profiles in DynamoDB |
+
+---
+
+## Environment Variables (API Lambda)
+
+| Variable | Value |
+|----------|-------|
+| `BEDROCK_AGENT_ID` | TR4NBWWQNA |
+| `BEDROCK_AGENT_ALIAS_ID` | DWSWRR9VPL |
+| `AWS_REGION_NAME` | ap-southeast-1 |
+
+---
+
+## Security
+
+- **Cognito** handles user authentication with email verification
+- **IAM roles** follow least-privilege per Lambda function
+- **CORS** configured on all API Gateway endpoints
+- **CloudFront** enforces HTTPS redirect
+- **No secrets in code** — all config via environment variables
+
+---
+
+## Cost Estimate (Monthly)
+
+All services are serverless/pay-per-use:
+- Bedrock (Haiku): ~$0.25/1M input tokens
+- Lambda: Free tier covers 1M requests
+- API Gateway: Free tier covers 1M calls
+- DynamoDB: Free tier covers 25 RCU/WCU
+- S3 + CloudFront: Pennies for static hosting
+- **Estimated total for demo usage: < $5/month**
+
+---
 
 ## License
 
 MIT
+
+---
+
+*Built for AWS Cloud Competition 2025 — Showcasing 14 integrated AWS services for AI-powered healthcare.*
