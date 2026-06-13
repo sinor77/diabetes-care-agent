@@ -41,6 +41,38 @@ def _error_response(status_code: int, message: str) -> dict:
     }
 
 
+PROFILE_TABLE = "diabetes-care-profiles"
+
+
+def _save_profile(email: str, profile_data: dict) -> dict:
+    """Save a user profile to DynamoDB."""
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(PROFILE_TABLE)
+    import time
+    item = {**profile_data, "email": email, "updated_at": int(time.time())}
+    table.put_item(Item=item)
+    return {"status": "saved", "email": email}
+
+
+def _load_profile(email: str) -> dict:
+    """Load a user profile from DynamoDB."""
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(PROFILE_TABLE)
+    response = table.get_item(Key={"email": email})
+    item = response.get("Item")
+    if item:
+        return {"status": "found", "profile": item}
+    return {"status": "not_found", "profile": None}
+
+
+def _delete_profile(email: str) -> dict:
+    """Delete a user profile from DynamoDB."""
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(PROFILE_TABLE)
+    table.delete_item(Key={"email": email})
+    return {"status": "deleted", "email": email}
+
+
 def _send_email_report(to_email: str, name: str, analysis: str, profile: dict) -> dict:
     """Send analysis report via SES."""
     ses = boto3.client("ses", region_name=REGION)
@@ -303,6 +335,36 @@ def handler(event, context):
             "headers": _cors_headers(),
             "body": json.dumps(result),
         }
+
+    # POST /profile - Save profile to DynamoDB
+    if http_method == "POST" and "/profile" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        email = body.get("email", "").strip()
+        if not email:
+            return _error_response(400, "Email is required as profile key")
+        result = _save_profile(email, body)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # GET /profile?email=xxx - Load profile from DynamoDB
+    if http_method == "GET" and "/profile" in path:
+        params = event.get("queryStringParameters") or {}
+        email = params.get("email", "").strip()
+        if not email:
+            return _error_response(400, "Email query param required")
+        result = _load_profile(email)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # DELETE /profile?email=xxx - Delete profile from DynamoDB
+    if http_method == "DELETE" and "/profile" in path:
+        params = event.get("queryStringParameters") or {}
+        email = params.get("email", "").strip()
+        if not email:
+            return _error_response(400, "Email query param required")
+        result = _delete_profile(email)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
 
     # POST /lab-vision - Analyze lab image with Claude vision (Converse API)
     if http_method == "POST" and "/lab-vision" in path:

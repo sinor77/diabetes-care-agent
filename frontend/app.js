@@ -62,24 +62,79 @@ function saveProfile() {
     const p = getProfile();
     localStorage.setItem("dc_profile", JSON.stringify(p));
     showBadge(p.name);
-    toast("💾", "Profile saved!");
     renderProfileOverview();
+
+    // Save to cloud DB
+    if (p.email) {
+        fetch(`${CONFIG.API_ENDPOINT}/profile`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(p),
+        }).then(r => {
+            if (r.ok) toast("☁️", "Profile saved to cloud!");
+            else toast("💾", "Saved locally (cloud sync failed).");
+        }).catch(() => toast("💾", "Saved locally."));
+    } else {
+        toast("💾", "Saved locally. Add email for cloud sync.");
+    }
 }
 
 function loadProfile() {
+    // Try cloud first if email in localStorage
     const s = localStorage.getItem("dc_profile");
-    if (!s) return;
-    try {
-        const p = JSON.parse(s);
-        setV("input-name",p.name); setV("input-email",p.email); setV("input-dtype",p.dtype);
-        setV("input-age",p.age); setV("input-sex",p.sex); setV("input-hba1c",p.hba1c);
-        setV("input-goal-hba1c",p.goalHba1c); setV("input-bp",p.bp); setV("input-weight",p.weight);
-        setV("input-height",p.height); setV("input-years",p.years); setV("input-meds",p.meds);
-        setV("input-challenge",p.challenge); setV("input-goal",p.goal);
-        showBadge(p.name);
-        renderProfileOverview();
-        if (p.name) toast("👤", `Welcome back, ${p.name}!`);
-    } catch(e) { console.error(e); }
+    let localProfile = null;
+    if (s) {
+        try { localProfile = JSON.parse(s); } catch {}
+    }
+
+    if (localProfile && localProfile.email) {
+        // Try loading from cloud
+        fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(localProfile.email)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === "found" && data.profile) {
+                    applyProfile(data.profile);
+                    toast("☁️", `Profile loaded from cloud!`);
+                } else {
+                    applyProfile(localProfile);
+                }
+            })
+            .catch(() => applyProfile(localProfile));
+    } else if (localProfile) {
+        applyProfile(localProfile);
+    }
+}
+
+function applyProfile(p) {
+    if (!p) return;
+    setV("input-name",p.name); setV("input-email",p.email); setV("input-dtype",p.dtype);
+    setV("input-age",p.age); setV("input-sex",p.sex); setV("input-hba1c",p.hba1c);
+    setV("input-goal-hba1c",p.goalHba1c); setV("input-bp",p.bp); setV("input-weight",p.weight);
+    setV("input-height",p.height); setV("input-years",p.years); setV("input-meds",p.meds);
+    setV("input-challenge",p.challenge); setV("input-goal",p.goal);
+    localStorage.setItem("dc_profile", JSON.stringify(p));
+    showBadge(p.name);
+    renderProfileOverview();
+    if (p.name) toast("👤", `Welcome back, ${p.name}!`);
+}
+
+function deleteProfile() {
+    const email = v("input-email");
+    if (!email) { toast("⚠️", "No profile to delete."); return; }
+    if (!confirm(`Delete profile for ${email}? This cannot be undone.`)) return;
+
+    // Delete from cloud
+    fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`, { method: "DELETE" })
+        .then(r => r.json())
+        .then(() => toast("🗑️", "Profile deleted from cloud."))
+        .catch(() => {});
+
+    // Clear local
+    localStorage.removeItem("dc_profile");
+    document.querySelectorAll(".inp").forEach(el => el.value = "");
+    document.getElementById("overview-content").innerHTML = `<p class="text-sm text-gray-400 text-center py-8">Profile deleted. Start fresh!</p>`;
+    document.getElementById("profile-badge").classList.add("hidden");
+    toast("🗑️", "Profile deleted!");
 }
 
 function showBadge(name) {
