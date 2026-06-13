@@ -17,6 +17,10 @@
 .upload-box{border:2px dashed #e5e7eb;border-radius:0.75rem;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .2s}
 .upload-box:hover{border-color:#16a34a}
 
+.stat-card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:0.75rem;padding:0.75rem 1rem}
+.stat-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin-bottom:0.15rem}
+.stat-value{font-size:0.95rem;font-weight:600;color:#111827}
+
 .spinner{border:3px solid #e5e7eb;border-top:3px solid #16a34a;border-radius:50%;width:18px;height:18px;animation:spin .7s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 

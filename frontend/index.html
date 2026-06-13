@@ -44,12 +44,14 @@
     <div class="bg-white border-b border-gray-200 sticky top-[57px] z-40">
         <div class="max-w-6xl mx-auto px-4">
             <div class="flex gap-1 overflow-x-auto py-2" id="tab-bar">
-                <button class="tab-btn active" data-tab="profile">👤 Profile</button>
+                <button class="tab-btn active" data-tab="overview">📊 Overview</button>
+                <button class="tab-btn" data-tab="profile">👤 Profile</button>
                 <button class="tab-btn" data-tab="meal">🥗 Meal Analyzer</button>
                 <button class="tab-btn" data-tab="lab">🧪 Lab Interpreter</button>
                 <button class="tab-btn" data-tab="risk">⚡ Risk Predictor</button>
                 <button class="tab-btn" data-tab="plan">📋 Plan Generator</button>
                 <button class="tab-btn" data-tab="coach">🤖 AI Coach</button>
+                <button class="tab-btn" data-tab="insights">💡 Insights</button>
             </div>
         </div>
     </div>
@@ -57,8 +59,40 @@
     <!-- Content Area -->
     <main class="max-w-6xl mx-auto px-4 py-6">
 
+        <!-- TAB: Overview -->
+        <section id="tab-overview" class="tab-content active">
+            <div class="space-y-6">
+                <div class="bg-gradient-to-br from-brand-600 to-teal-600 rounded-2xl p-6 text-white">
+                    <h2 class="text-2xl font-bold mb-2">Welcome To DiabetesControl AI</h2>
+                    <p class="text-brand-100 text-sm leading-relaxed">Your personalized diabetes management dashboard. Fill your profile, then explore each analysis tool for AI-powered insights.</p>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-200 p-6">
+                    <h3 class="font-bold text-gray-900 mb-4">📊 Your Profile Summary</h3>
+                    <div id="overview-content">
+                        <p class="text-sm text-gray-400 text-center py-8">Fill in your profile to see your health overview here.</p>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-2xl border border-gray-200 p-5">
+                        <h4 class="font-semibold text-gray-900 mb-2">🚀 Quick Actions</h4>
+                        <div class="space-y-2">
+                            <button onclick="switchTab('meal')" class="w-full text-left px-3 py-2 bg-orange-50 rounded-lg text-sm text-orange-700 hover:bg-orange-100 transition">🥗 Log a meal for analysis</button>
+                            <button onclick="switchTab('lab')" class="w-full text-left px-3 py-2 bg-purple-50 rounded-lg text-sm text-purple-700 hover:bg-purple-100 transition">🧪 Upload lab results</button>
+                            <button onclick="switchTab('risk')" class="w-full text-left px-3 py-2 bg-red-50 rounded-lg text-sm text-red-700 hover:bg-red-100 transition">⚡ Check today's risks</button>
+                            <button onclick="switchTab('plan')" class="w-full text-left px-3 py-2 bg-green-50 rounded-lg text-sm text-green-700 hover:bg-green-100 transition">📋 Generate daily plan</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-gray-200 p-5">
+                        <h4 class="font-semibold text-gray-900 mb-2">📧 Reports</h4>
+                        <p class="text-sm text-gray-500 mb-3">Send your analysis results to your email.</p>
+                        <button onclick="sendEmailReport()" id="email-btn" class="w-full py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 transition disabled:opacity-40" disabled>Send Report to My Email</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- TAB: Profile -->
-        <section id="tab-profile" class="tab-content active">
+        <section id="tab-profile" class="tab-content hidden">
             <div class="grid md:grid-cols-2 gap-6">
                 <div class="bg-white rounded-2xl border border-gray-200 p-6">
                     <h2 class="text-lg font-bold text-gray-900 mb-4">Your Health Profile</h2>
@@ -227,6 +261,25 @@
                         <button onclick="speakSection('out-coach')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
                     </div>
                     <div id="out-coach" class="output-box"><p class="placeholder-text">Ask a question to get personalized coaching.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: Insights -->
+        <section id="tab-insights" class="tab-content hidden">
+            <div class="bg-white rounded-2xl border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="font-bold text-gray-900 text-lg">💡 Health Insights & Progress</h2>
+                        <p class="text-xs text-gray-500 mt-1">AI-generated summary of your overall health status and next steps.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="speakSection('out-insights')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                        <button onclick="runInsights()" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 transition">Generate Insights</button>
+                    </div>
+                </div>
+                <div id="out-insights" class="output-box">
+                    <p class="placeholder-text">Complete some analyses first (Meal, Lab, Risk, Plan), then generate your personalized health insights here.</p>
                 </div>
             </div>
         </section>
