@@ -409,7 +409,7 @@ Medications: ${p.meds||"unknown"}. Challenge: ${p.challenge||"not specified"}.`;
 // ========== STEP FUNCTIONS PIPELINE ==========
 async function runPipeline() {
     const p = getProfile();
-    if (!p.name && !p.hba1c) { toast("⚠️", "Fill your profile first."); return; }
+    if (!p.name && !p.hba1c) { toast("⚠️", "Fill your profile first (at least name + HbA1c)."); return; }
 
     const btn = document.getElementById("pipeline-btn");
     const status = document.getElementById("pipeline-status");
@@ -417,20 +417,26 @@ async function runPipeline() {
     btn.textContent = "⏳ Running Pipeline...";
     status.classList.remove("hidden");
 
+    const ctx = `Patient: ${p.name||"User"}, ${p.age||"?"}yo ${p.sex||""}, ${p.dtype||"Type 2"} diabetes for ${p.years||"?"} years. HbA1c: ${p.hba1c||"?"}% (goal: ${p.goalHba1c||"?"}%), BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg, Height: ${p.height||"?"}cm. Medications: ${p.meds||"unknown"}. Challenge: ${p.challenge||"not specified"}.`;
+
     const steps = [
-        { name: "Meal Analysis", tool: "meal" },
-        { name: "Lab Interpretation", tool: "lab" },
-        { name: "Risk Prediction", tool: "risk" },
-        { name: "Plan Generation", tool: "plan" },
-        { name: "Insights", tool: "insights" },
+        { name: "Meal Analysis", id: "out-meal", prompt: `You are a diabetes nutritionist. DO NOT call any tools. Respond directly.\n\n${ctx}\n\nThe patient hasn't logged a specific meal, so provide general meal guidance:\n1. **Recommended daily carb targets** for their profile\n2. **Sample breakfast, lunch, dinner** with glycemic index notes\n3. **Foods to avoid** and **foods to prefer**\n4. **Portion tips**\n\nBe specific to their diabetes type and medications.` },
+        { name: "Lab Interpretation", id: "out-lab", prompt: `You are a clinical lab interpreter. DO NOT call any tools. Respond directly.\n\n${ctx}\n\nBased on HbA1c of ${p.hba1c||"?"}% and BP of ${p.bp||"?"}:\n- Interpret their HbA1c against ADA guidelines\n- Assess cardiovascular risk from BP\n- Recommend which labs to get next (lipid panel, kidney function, etc.)\n- Provide timeline for retesting\n\nMark status with ✅ Normal / ⚠️ Borderline / 🔴 High Risk.` },
+        { name: "Risk Prediction", id: "out-risk", prompt: `You are a diabetes risk specialist. DO NOT call any tools. Respond directly.\n\n${ctx}\n\nBased on their profile, assess:\n1. **Hypoglycemia Risk** (Low/Mod/High) based on their medications\n2. **Hyperglycemia Risk** based on HbA1c level\n3. **Cardiovascular Risk** based on BP and diabetes duration\n4. **Complication Risk** (eyes, kidneys, nerves) based on years with diabetes\n5. **Immediate Actions** (2-3 things to do this week)\n\nBe specific and evidence-based.` },
+        { name: "Plan Generation", id: "out-plan", prompt: `You are a diabetes plan generator. DO NOT call any tools. Respond directly.\n\n${ctx}\n\nCreate a complete daily plan:\n**🍽️ NUTRITION** (6 meals with times and specific foods)\n**💧 HYDRATION** (daily target + schedule)\n**🏃 ACTIVITY** (morning/afternoon/evening)\n**📊 MONITORING** (when to check glucose)\n**💊 MEDICATION TIMING**\n\nMake it realistic and personalized to their challenge.` },
+        { name: "Health Insights", id: "out-insights", prompt: null },
     ];
 
     for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
         status.innerHTML = `<span class="inline-block w-2 h-2 bg-brand-500 rounded-full animate-pulse mr-1"></span> Step ${i+1}/5: ${step.name}...`;
 
-        const prompt = step.tool === "insights" ? buildInsightsPrompt(p) : buildPrompt(step.tool, p);
-        if (!prompt) { continue; }
+        // Build insights prompt using previous results
+        let prompt = step.prompt;
+        if (step.name === "Health Insights") {
+            const allData = Object.entries(results).filter(([k,v])=>v&&k!=="insights").map(([k,v]) => `[${k}]: ${v?.substring(0,400)}`).join("\n");
+            prompt = `You are a diabetes health insights analyst. DO NOT call any tools. Respond directly.\n\n${ctx}\n\nPrevious analyses:\n${allData}\n\nGenerate:\n## 📊 Health Score (1-10)\n## 📈 Positive Trends (2-3)\n## ⚠️ Concerns (2-3)\n## 🎯 This Week's Focus (3 goals)\n## 💡 Tips (3 personalized)\n## 📅 Next Steps`;
+        }
 
         try {
             const res = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
@@ -440,8 +446,9 @@ async function runPipeline() {
             });
             if (res.ok) {
                 const data = await res.json();
-                results[step.tool] = data.response;
-                const outEl = document.getElementById("out-" + step.tool);
+                const key = ["meal","lab","risk","plan","insights"][i];
+                results[key] = data.response;
+                const outEl = document.getElementById(step.id);
                 if (outEl) outEl.innerHTML = formatMd(data.response);
             }
         } catch (e) { /* continue pipeline */ }
@@ -458,11 +465,6 @@ async function runPipeline() {
     btn.textContent = "🚀 Run Full Analysis Pipeline";
     document.getElementById("email-btn").disabled = false;
     toast("✅", "Full analysis pipeline complete!");
-}
-
-function buildInsightsPrompt(p) {
-    const allData = Object.entries(results).filter(([k,v])=>v&&k!=="insights").map(([k,v]) => `[${k}]: ${v?.substring(0,400)}`).join("\n");
-    return `You are a diabetes health insights analyst. DO NOT call any tools. Respond directly.\n\nPatient: ${p.name||"User"}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years. HbA1c: ${p.hba1c||"?"}% → Goal: ${p.goalHba1c||"?"}%. BP: ${p.bp||"?"}. Weight: ${p.weight||"?"}kg. Meds: ${p.meds||"unknown"}. Challenge: ${p.challenge||"?"}.\n\nPrevious analyses:\n${allData}\n\nGenerate:\n## 📊 Health Score (1-10)\n## 📈 Positive Trends (2-3 points)\n## ⚠️ Concerns (2-3 points)\n## 🎯 This Week's Focus (3 goals)\n## 💡 Tips (3 personalized)\n## 📅 Next Steps`;
 }
 
 // ========== EMAIL ==========
