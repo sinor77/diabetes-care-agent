@@ -1,6 +1,6 @@
 # 🩺 DiabetesControl AI Expert - Amazon Bedrock Agent
 
-A Digital Diabetes Care Assistant powered by Amazon Bedrock Agents (Claude 3.5 Sonnet) with 4 functional Lambda-backed tools, a modern chat frontend, and one-click AWS deployment via SAM.
+A Digital Diabetes Care Assistant powered by Amazon Bedrock Agents (Claude 3 Haiku) with 4 functional Lambda-backed tools, a modern chat frontend, and one-click AWS deployment via SAM.
 
 ## Architecture
 
@@ -17,8 +17,8 @@ A Digital Diabetes Care Assistant powered by Amazon Bedrock Agents (Claude 3.5 S
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │              Amazon Bedrock Agent                            │
-│      Model: anthropic.claude-3-5-sonnet-20241022-v2:0       │
-│   Tone: Empathetic, evidence-based diabetes care assistant  │
+│      Model: anthropic.claude-3-haiku-20240307-v1:0             │
+│   Tone: Empathetic, evidence-based diabetes care assistant     │
 └──────────┬───────────┬───────────┬───────────┬──────────────┘
            │           │           │           │
    ┌───────▼──┐ ┌──────▼───┐ ┌────▼─────┐ ┌──▼───────────┐
@@ -37,8 +37,9 @@ A Digital Diabetes Care Assistant powered by Amazon Bedrock Agents (Claude 3.5 S
 
 ## Prerequisites
 
-1. **AWS Account** with Bedrock model access enabled for Claude 3.5 Sonnet
-   - Go to AWS Console → Bedrock → Model access → Request access to Anthropic Claude 3.5 Sonnet
+1. **AWS Account** with Bedrock access in `ap-southeast-1` (Singapore)
+   - Uses Claude 3 Haiku via APAC inference profile (auto-enabled, no manual activation needed)
+   - Model: `anthropic.claude-3-haiku-20240307-v1:0`
 2. **AWS CLI v2** configured (`aws configure`)
 3. **AWS SAM CLI** installed — [Install Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 4. **Python 3.11+**
@@ -99,7 +100,7 @@ sam deploy --guided
 
 During guided deployment, provide:
 - **Stack Name:** `diabetes-care-agent`
-- **Region:** `us-east-1` (or any Bedrock-enabled region)
+- **Region:** `ap-southeast-1` (Singapore — matches your Bedrock access)
 - **Confirm changes:** Y
 - **Allow SAM CLI IAM role creation:** Y
 - **Save arguments to samconfig.toml:** Y
@@ -110,7 +111,7 @@ After SAM deploys the Lambda and API Gateway, run the setup script to create and
 
 ```bash
 pip install boto3
-python scripts/setup_agent.py --region us-east-1
+python scripts/setup_agent.py --region ap-southeast-1
 ```
 
 This script will:
@@ -125,7 +126,7 @@ This script will:
 ```bash
 aws lambda update-function-configuration \
   --function-name diabetes-care-api \
-  --environment "Variables={BEDROCK_AGENT_ID=<AGENT_ID>,BEDROCK_AGENT_ALIAS_ID=<ALIAS_ID>,AWS_REGION_NAME=us-east-1}"
+  --environment "Variables={BEDROCK_AGENT_ID=<AGENT_ID>,BEDROCK_AGENT_ALIAS_ID=<ALIAS_ID>,AWS_REGION_NAME=ap-southeast-1}"
 ```
 
 ### Step 5: Configure Frontend
@@ -133,7 +134,7 @@ aws lambda update-function-configuration \
 Edit `frontend/config.js`:
 ```javascript
 const CONFIG = {
-  API_ENDPOINT: "https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod",
+  API_ENDPOINT: "https://YOUR_API_ID.execute-api.ap-southeast-1.amazonaws.com/prod",
 };
 ```
 

@@ -5,5 +5,5 @@
  */
 const CONFIG = {
   // Replace with your API Gateway URL from SAM deploy output
-  API_ENDPOINT: "https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod",
+  API_ENDPOINT: "https://YOUR_API_ID.execute-api.ap-southeast-1.amazonaws.com/prod",
 };

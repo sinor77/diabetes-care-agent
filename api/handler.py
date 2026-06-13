@@ -16,7 +16,7 @@ logger.setLevel(logging.INFO)
 # Environment variables
 AGENT_ID = os.environ.get("BEDROCK_AGENT_ID", "")
 AGENT_ALIAS_ID = os.environ.get("BEDROCK_AGENT_ALIAS_ID", "")
-REGION = os.environ.get("AWS_REGION_NAME", os.environ.get("AWS_REGION", "us-east-1"))
+REGION = os.environ.get("AWS_REGION_NAME", os.environ.get("AWS_REGION", "ap-southeast-1"))
 
 # Initialize Bedrock Agent Runtime client
 bedrock_agent_runtime = boto3.client("bedrock-agent-runtime", region_name=REGION)

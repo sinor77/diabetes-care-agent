@@ -3,11 +3,11 @@ Bedrock Agent Setup Script
 Creates and configures the Bedrock Agent with Action Groups after SAM deployment.
 
 Usage:
-    python scripts/setup_agent.py --region us-east-1
+    python scripts/setup_agent.py --region ap-southeast-1
 
 Prerequisites:
     - SAM stack deployed (provides Lambda ARN)
-    - Bedrock model access enabled for Claude 3.5 Sonnet
+    - Bedrock access enabled for Claude 3 Haiku (auto-enabled in ap-southeast-1)
     - boto3 installed
 """
 
@@ -95,18 +95,22 @@ def create_agent(bedrock_client, instruction: str, region: str) -> str:
     print("  ⏳ Waiting for IAM role propagation (10s)...")
     time.sleep(10)
 
-    # Create agent
+    # Using Claude 3 Haiku via APAC inference profile
+    # This is the model confirmed to work with the account's IAM policies
+    foundation_model = "anthropic.claude-3-haiku-20240307-v1:0"
+
     try:
         response = bedrock_client.create_agent(
             agentName="DiabetesControl-AI-Expert",
             agentResourceRoleArn=role_arn,
-            description="An empathetic, evidence-based digital diabetes care assistant powered by Claude.",
-            foundationModel="anthropic.claude-3-5-sonnet-20241022-v2:0",
+            description="An empathetic, evidence-based digital diabetes care assistant powered by Claude 3 Haiku.",
+            foundationModel=foundation_model,
             instruction=instruction,
             idleSessionTTLInSeconds=1800,
         )
         agent_id = response["agent"]["agentId"]
-        print(f"  ✓ Created agent: {agent_id}")
+        print(f"  ✓ Created agent with model: {foundation_model}")
+        print(f"  ✓ Agent ID: {agent_id}")
         return agent_id
     except ClientError as e:
         if "already exists" in str(e).lower() or "ConflictException" in str(e):
@@ -121,10 +125,10 @@ def create_agent(bedrock_client, instruction: str, region: str) -> str:
                         agentId=agent_id,
                         agentName="DiabetesControl-AI-Expert",
                         agentResourceRoleArn=role_arn,
-                        foundationModel="anthropic.claude-3-5-sonnet-20241022-v2:0",
+                        foundationModel=foundation_model,
                         instruction=instruction,
                     )
-                    print(f"  ✓ Updated agent instruction")
+                    print(f"  ✓ Updated agent with model: {foundation_model}")
                     return agent_id
         raise
 
@@ -217,7 +221,7 @@ def prepare_and_create_alias(bedrock_client, agent_id: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Setup Bedrock Agent for DiabetesControl AI")
-    parser.add_argument("--region", default="us-east-1", help="AWS Region")
+    parser.add_argument("--region", default="ap-southeast-1", help="AWS Region")
     parser.add_argument("--stack-name", default="diabetes-care-agent", help="SAM stack name")
     args = parser.parse_args()
 
