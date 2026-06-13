@@ -45,6 +45,36 @@ PROFILE_TABLE = "diabetes-care-profiles"
 SNS_TOPIC_ARN = "arn:aws:sns:ap-southeast-1:823164611866:diabetes-care-reminders"
 
 
+def _detect_medical_entities(text: str) -> dict:
+    """Extract medical entities using Amazon Comprehend Medical."""
+    comprehend = boto3.client("comprehendmedical", region_name=REGION)
+    try:
+        response = comprehend.detect_entities_v2(Text=text)
+        entities = []
+        for entity in response.get("Entities", []):
+            entities.append({
+                "text": entity.get("Text", ""),
+                "category": entity.get("Category", ""),
+                "type": entity.get("Type", ""),
+                "score": round(entity.get("Score", 0), 3),
+                "traits": [t.get("Name", "") for t in entity.get("Traits", [])],
+            })
+        # Group by category
+        grouped = {}
+        for e in entities:
+            cat = e["category"]
+            if cat not in grouped:
+                grouped[cat] = []
+            grouped[cat].append(e)
+        return {"status": "success", "entities": entities, "grouped": grouped, "entity_count": len(entities)}
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        logger.error(f"Comprehend Medical error: {error_msg}")
+        return {"error": f"Comprehend Medical failed: {error_msg}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def _send_sms(phone: str, message: str) -> dict:
     """Send an SMS via SNS."""
     sns = boto3.client("sns", region_name=REGION)
@@ -382,6 +412,18 @@ def handler(event, context):
             "headers": _cors_headers(),
             "body": json.dumps(result),
         }
+
+    # POST /comprehend-medical - Extract medical entities from text
+    if http_method == "POST" and "/comprehend-medical" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        text = body.get("text", "").strip()
+        if not text:
+            return _error_response(400, "Text is required")
+        result = _detect_medical_entities(text)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
 
     # POST /sms-reminder - Subscribe phone and send SMS reminder via SNS
     if http_method == "POST" and "/sms-reminder" in path:
