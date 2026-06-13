@@ -61,49 +61,57 @@ function getProfile() {
 
 function saveProfile() {
     const p = getProfile();
+    // Use Cognito email if signed in
+    const authEmail = localStorage.getItem("dc_cognito_email");
+    if (authEmail) p.email = authEmail;
+
     localStorage.setItem("dc_profile", JSON.stringify(p));
     showBadge(p.name);
     renderProfileOverview();
 
-    // Save to cloud DB
+    // Save to cloud DB linked to account
     if (p.email) {
         fetch(`${CONFIG.API_ENDPOINT}/profile`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(p),
         }).then(r => {
-            if (r.ok) toast("☁️", "Profile saved to cloud!");
+            if (r.ok) toast("☁️", "Profile saved to your account!");
             else toast("💾", "Saved locally (cloud sync failed).");
         }).catch(() => toast("💾", "Saved locally."));
     } else {
-        toast("💾", "Saved locally. Add email for cloud sync.");
+        toast("⚠️", "Sign in to save profile to your account.");
     }
 }
 
-function loadProfile() {
-    // Try cloud first if email in localStorage
+async function loadCloudProfile(email) {
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === "found" && data.profile) {
+                applyProfile(data.profile);
+                toast("☁️", `Profile loaded for ${email}`);
+                return;
+            }
+        }
+    } catch (e) { /* fallback to local */ }
+    // No cloud profile found — try local
     const s = localStorage.getItem("dc_profile");
-    let localProfile = null;
-    if (s) {
-        try { localProfile = JSON.parse(s); } catch {}
-    }
+    if (s) { try { applyProfile(JSON.parse(s)); } catch {} }
+}
 
-    if (localProfile && localProfile.email) {
-        // Try loading from cloud
-        fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(localProfile.email)}`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === "found" && data.profile) {
-                    applyProfile(data.profile);
-                    toast("☁️", `Profile loaded from cloud!`);
-                } else {
-                    applyProfile(localProfile);
-                }
-            })
-            .catch(() => applyProfile(localProfile));
-    } else if (localProfile) {
-        applyProfile(localProfile);
-    }
+function loadProfile() {
+    // Only auto-load local profile if NOT signed in (signed-in users load via onSignedIn)
+    const authEmail = localStorage.getItem("dc_cognito_email");
+    if (authEmail) return; // Will be loaded after Cognito session check
+
+    const s = localStorage.getItem("dc_profile");
+    if (!s) return;
+    try {
+        const p = JSON.parse(s);
+        applyProfile(p);
+    } catch(e) { console.error(e); }
 }
 
 function applyProfile(p) {
@@ -120,7 +128,8 @@ function applyProfile(p) {
 }
 
 function deleteProfile() {
-    const email = v("input-email");
+    const authEmail = localStorage.getItem("dc_cognito_email");
+    const email = authEmail || v("input-email");
     if (!email) { toast("⚠️", "No profile to delete."); return; }
     if (!confirm(`Delete profile for ${email}? This cannot be undone.`)) return;
 
@@ -665,9 +674,11 @@ function onSignedIn(email) {
     btn.classList.remove("bg-brand-600");
     btn.classList.add("bg-gray-600");
     toast("✅", `Signed in as ${email}`);
-    // Auto-fill email in profile
+    // Auto-fill email in profile and load cloud profile
     const emailInput = document.getElementById("input-email");
-    if (emailInput && !emailInput.value) emailInput.value = email;
+    if (emailInput) emailInput.value = email;
+    // Load profile from DynamoDB for this account
+    loadCloudProfile(email);
 }
 
 function signOut() {
@@ -676,12 +687,19 @@ function signOut() {
     if (currentUser) currentUser.signOut();
     cognitoUser = null;
     localStorage.removeItem("dc_cognito_email");
+    localStorage.removeItem("dc_profile");
     const btn = document.getElementById("auth-btn");
     btn.textContent = "Sign In";
     btn.setAttribute("onclick", "showAuthModal()");
     btn.classList.add("bg-brand-600");
     btn.classList.remove("bg-gray-600");
-    toast("👋", "Signed out.");
+    // Clear form
+    document.querySelectorAll(".inp").forEach(el => el.value = "");
+    document.getElementById("profile-badge").classList.add("hidden");
+    document.getElementById("profile-badge").classList.remove("flex");
+    document.getElementById("overview-content").innerHTML = `<p class="text-sm text-gray-400 text-center py-8">Sign in to load your profile.</p>`;
+    results = {};
+    toast("👋", "Signed out. Profile cleared.");
 }
 
 function checkExistingSession() {
