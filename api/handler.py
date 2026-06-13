@@ -42,6 +42,53 @@ def _error_response(status_code: int, message: str) -> dict:
 
 
 PROFILE_TABLE = "diabetes-care-profiles"
+SNS_TOPIC_ARN = "arn:aws:sns:ap-southeast-1:823164611866:diabetes-care-reminders"
+
+
+def _send_sms(phone: str, message: str) -> dict:
+    """Send an SMS via SNS."""
+    sns = boto3.client("sns", region_name=REGION)
+    try:
+        response = sns.publish(
+            PhoneNumber=phone,
+            Message=message,
+            MessageAttributes={
+                "AWS.SNS.SMS.SenderID": {"DataType": "String", "StringValue": "DiabetesAI"},
+                "AWS.SNS.SMS.SMSType": {"DataType": "String", "StringValue": "Transactional"},
+            }
+        )
+        return {"status": "sent", "messageId": response.get("MessageId", "")}
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        logger.error(f"SNS error: {error_msg}")
+        return {"error": f"SMS failed: {error_msg}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _extract_text_textract(image_base64: str) -> dict:
+    """Extract text from an image using Amazon Textract."""
+    import base64
+    textract = boto3.client("textract", region_name=REGION)
+    try:
+        image_bytes = base64.b64decode(image_base64)
+        response = textract.detect_document_text(
+            Document={"Bytes": image_bytes}
+        )
+        # Extract all text blocks
+        lines = []
+        for block in response.get("Blocks", []):
+            if block["BlockType"] == "LINE":
+                lines.append(block["Text"])
+
+        full_text = "\n".join(lines)
+        return {"status": "success", "text": full_text, "line_count": len(lines)}
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        logger.error(f"Textract error: {error_msg}")
+        return {"error": f"Textract failed: {error_msg}"}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def _save_profile(email: str, profile_data: dict) -> dict:
@@ -335,6 +382,31 @@ def handler(event, context):
             "headers": _cors_headers(),
             "body": json.dumps(result),
         }
+
+    # POST /sms-reminder - Subscribe phone and send SMS reminder via SNS
+    if http_method == "POST" and "/sms-reminder" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        phone = body.get("phone", "").strip()
+        message = body.get("message", "").strip()
+        if not phone:
+            return _error_response(400, "Phone number required (e.g., +60123456789)")
+        result = _send_sms(phone, message or "DiabetesControl AI Reminder: Time to check your blood glucose! Stay on track today.")
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # POST /textract - Extract text from lab image using Amazon Textract
+    if http_method == "POST" and "/textract" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        image_base64 = body.get("image", "")
+        if not image_base64:
+            return _error_response(400, "Image (base64) required")
+        result = _extract_text_textract(image_base64)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
 
     # POST /profile - Save profile to DynamoDB
     if http_method == "POST" and "/profile" in path:

@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["sns:Publish", "sns:Subscribe", "sns:CreateTopic"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["textract:AnalyzeDocument", "textract:DetectDocumentText"],
+      "Resource": "*"
+    }
+  ]
+}
