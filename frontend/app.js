@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSession();
     loadProfile();
     setupTabs();
+    loadLatestInsight();
 });
 
 // ========== SESSION ==========
@@ -346,11 +347,29 @@ Be encouraging but honest. Use specific numbers where possible.`;
             results.insights = data.response;
             el.innerHTML = formatMd(data.response);
             document.getElementById("email-btn").disabled = false;
+
+            // Persist insight to localStorage so it survives refresh
+            localStorage.setItem("dc_latest_insight", data.response);
+            renderLatestInsight(data.response);
         } else {
             const err = await res.json().catch(() => ({}));
             el.innerHTML = errBox(err.error || "Error");
         }
     } catch(e) { el.innerHTML = errBox(e.message); }
+}
+
+function renderLatestInsight(text) {
+    const el = document.getElementById("latest-insight");
+    if (!el || !text) return;
+    // Show a short preview (first 300 chars)
+    const preview = text.substring(0, 300).replace(/\n/g, " ").replace(/[#*]/g, "");
+    el.innerHTML = `<p class="text-sm text-gray-700 leading-relaxed">${esc(preview)}${text.length > 300 ? "..." : ""}</p>
+        <button onclick="switchTab('insights')" class="mt-2 text-xs text-brand-600 font-medium hover:underline">View full insights →</button>`;
+}
+
+function loadLatestInsight() {
+    const saved = localStorage.getItem("dc_latest_insight");
+    if (saved) renderLatestInsight(saved);
 }
 
 // ========== PROMPTS ==========
