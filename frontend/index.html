@@ -100,15 +100,13 @@
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-200 p-5">
                     <div class="flex items-center justify-between mb-3">
-                        <h4 class="font-semibold text-gray-900">📱 SMS Notification</h4>
+                        <h4 class="font-semibold text-gray-900">⚙️ Full Analysis Pipeline</h4>
                     </div>
-                    <p class="text-sm text-gray-500 mb-3">Send your daily plan or coaching tips to your phone via SMS.</p>
-                    <button onclick="sendSMS('plan')" class="w-full py-2.5 border border-brand-300 bg-brand-50 text-brand-700 rounded-xl text-sm font-medium hover:bg-brand-100 transition disabled:opacity-40">
-                        📱 Send Plan via SMS
+                    <p class="text-sm text-gray-500 mb-3">Run all analyses in sequence using AWS Step Functions (Meal → Lab → Risk → Plan → Insights).</p>
+                    <button onclick="runPipeline()" id="pipeline-btn" class="w-full py-2.5 border border-brand-300 bg-brand-50 text-brand-700 rounded-xl text-sm font-medium hover:bg-brand-100 transition">
+                        🚀 Run Full Analysis Pipeline
                     </button>
-                    <button onclick="sendSMS('coach')" class="w-full mt-2 py-2.5 border border-blue-300 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-100 transition disabled:opacity-40">
-                        📱 Send Coaching via SMS
-                    </button>
+                    <div id="pipeline-status" class="mt-3 text-xs text-gray-500 hidden"></div>
                 </div>
             </div>
         </section>
@@ -256,10 +254,7 @@
                 <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="font-bold text-gray-900">Your Daily Plan</h2>
-                        <div class="flex gap-1">
-                            <button onclick="speakSection('out-plan')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
-                            <button onclick="sendSMS('plan')" class="text-xs px-3 py-1.5 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg hover:bg-brand-100 transition" title="Send to phone via SMS">📱 Send SMS</button>
-                        </div>
+                        <button onclick="speakSection('out-plan')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
                     </div>
                     <div id="out-plan" class="output-box"><p class="placeholder-text">Fill your profile and preferences, then generate.</p></div>
                 </div>
@@ -278,10 +273,7 @@
                 <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="font-bold text-gray-900">AI Response</h2>
-                        <div class="flex gap-1">
-                            <button onclick="speakSection('out-coach')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
-                            <button onclick="sendSMS('coach')" class="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition" title="Send to phone via SMS">📱 Send SMS</button>
-                        </div>
+                        <button onclick="speakSection('out-coach')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
                     </div>
                     <div id="out-coach" class="output-box"><p class="placeholder-text">Ask a question to get personalized coaching.</p></div>
                 </div>

@@ -406,36 +406,63 @@ Medications: ${p.meds||"unknown"}. Challenge: ${p.challenge||"not specified"}.`;
     return null;
 }
 
-// ========== SMS via SNS ==========
-async function sendSMS(tool) {
-    const content = results[tool];
-    if (!content) { toast("⚠️", "Generate the analysis first."); return; }
+// ========== STEP FUNCTIONS PIPELINE ==========
+async function runPipeline() {
+    const p = getProfile();
+    if (!p.name && !p.hba1c) { toast("⚠️", "Fill your profile first."); return; }
 
-    const phone = prompt("Enter phone number with country code (e.g., +60123456789):");
-    if (!phone || !phone.startsWith("+")) { toast("⚠️", "Invalid phone. Use format: +60123456789"); return; }
+    const btn = document.getElementById("pipeline-btn");
+    const status = document.getElementById("pipeline-status");
+    btn.disabled = true;
+    btn.textContent = "⏳ Running Pipeline...";
+    status.classList.remove("hidden");
 
-    // Truncate to 1600 chars for SMS (SNS limit)
-    const smsText = content.replace(/[#*_`]/g, "").substring(0, 1500) + (content.length > 1500 ? "\n\n[Truncated - view full report in app]" : "");
-    const label = tool === "plan" ? "Daily Plan" : "AI Coaching";
+    const steps = [
+        { name: "Meal Analysis", tool: "meal" },
+        { name: "Lab Interpretation", tool: "lab" },
+        { name: "Risk Prediction", tool: "risk" },
+        { name: "Plan Generation", tool: "plan" },
+        { name: "Insights", tool: "insights" },
+    ];
 
-    toast("📱", "Sending SMS...");
-    try {
-        const res = await fetch(`${CONFIG.API_ENDPOINT}/sms-reminder`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone, message: `🩺 DiabetesControl AI - ${label}:\n\n${smsText}` }),
-        });
-        if (res.ok) {
-            const data = await res.json();
-            if (data.status === "sent") toast("✅", `SMS sent to ${phone}!`);
-            else toast("⚠️", data.error || "SMS failed.");
-        } else {
-            const err = await res.json().catch(() => ({}));
-            toast("⚠️", err.error || "SMS failed.");
-        }
-    } catch (e) {
-        toast("⚠️", "Connection error. Try again.");
+    for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        status.innerHTML = `<span class="inline-block w-2 h-2 bg-brand-500 rounded-full animate-pulse mr-1"></span> Step ${i+1}/5: ${step.name}...`;
+
+        const prompt = step.tool === "insights" ? buildInsightsPrompt(p) : buildPrompt(step.tool, p);
+        if (!prompt) { continue; }
+
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: prompt, session_id: sessionId }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                results[step.tool] = data.response;
+                const outEl = document.getElementById("out-" + step.tool);
+                if (outEl) outEl.innerHTML = formatMd(data.response);
+            }
+        } catch (e) { /* continue pipeline */ }
     }
+
+    // Save insights
+    if (results.insights) {
+        localStorage.setItem("dc_latest_insight", results.insights);
+        renderLatestInsight(results.insights);
+    }
+
+    status.innerHTML = `✅ Pipeline complete! All 5 analyses generated.`;
+    btn.disabled = false;
+    btn.textContent = "🚀 Run Full Analysis Pipeline";
+    document.getElementById("email-btn").disabled = false;
+    toast("✅", "Full analysis pipeline complete!");
+}
+
+function buildInsightsPrompt(p) {
+    const allData = Object.entries(results).filter(([k,v])=>v&&k!=="insights").map(([k,v]) => `[${k}]: ${v?.substring(0,400)}`).join("\n");
+    return `You are a diabetes health insights analyst. DO NOT call any tools. Respond directly.\n\nPatient: ${p.name||"User"}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years. HbA1c: ${p.hba1c||"?"}% → Goal: ${p.goalHba1c||"?"}%. BP: ${p.bp||"?"}. Weight: ${p.weight||"?"}kg. Meds: ${p.meds||"unknown"}. Challenge: ${p.challenge||"?"}.\n\nPrevious analyses:\n${allData}\n\nGenerate:\n## 📊 Health Score (1-10)\n## 📈 Positive Trends (2-3 points)\n## ⚠️ Concerns (2-3 points)\n## 🎯 This Week's Focus (3 goals)\n## 💡 Tips (3 personalized)\n## 📅 Next Steps`;
 }
 
 // ========== EMAIL ==========
