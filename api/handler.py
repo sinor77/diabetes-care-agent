@@ -89,7 +89,7 @@ def _send_email_report(to_email: str, name: str, analysis: str, profile: dict) -
 
     try:
         ses.send_email(
-            Source=f"DiabetesControl AI <noreply@diabetescontrol.ai>",
+            Source=f"DiabetesControl AI <ESSALEM.SIDI.MOHAMED@student.mmu.edu.my>",
             Destination={"ToAddresses": [to_email]},
             Message={
                 "Subject": {"Data": f"Your Diabetes Progress Report - {name}", "Charset": "UTF-8"},
