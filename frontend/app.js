@@ -1,422 +1,337 @@
 /**
- * DiabetesControl AI Expert - Frontend
- * Each tool produces its own dedicated output via separate AI calls.
+ * DiabetesControl AI Expert
+ * Tabbed interface with dedicated AI calls per tool.
+ * Prompts are designed to get direct AI responses (no action group calls).
  */
 
 let sessionId = null;
-let isLoading = false;
 let ttsEnabled = false;
-let uploadedFileText = "";
-let allResults = {};
+let labFileText = "";
+let results = {};
 
 document.addEventListener("DOMContentLoaded", () => {
     initSession();
     loadProfile();
+    setupTabs();
 });
 
+// ========== SESSION ==========
 async function initSession() {
     try {
-        const res = await fetch(`${CONFIG.API_ENDPOINT}/session`);
-        if (res.ok) { sessionId = (await res.json()).session_id; }
-        else { sessionId = crypto.randomUUID(); }
+        const r = await fetch(`${CONFIG.API_ENDPOINT}/session`);
+        sessionId = r.ok ? (await r.json()).session_id : crypto.randomUUID();
     } catch { sessionId = crypto.randomUUID(); }
 }
 
-// ========== PROFILE ==========
+// ========== TABS ==========
+function setupTabs() {
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(c => { c.classList.remove("active"); c.classList.add("hidden"); });
+            btn.classList.add("active");
+            const tab = document.getElementById("tab-" + btn.dataset.tab);
+            tab.classList.remove("hidden");
+            tab.classList.add("active");
+        });
+    });
+}
 
-function gatherProfile() {
+// ========== PROFILE ==========
+function getProfile() {
     return {
-        email: val("input-email"),
-        name: val("input-name"),
-        diabetesType: val("input-diabetes-type"),
-        age: val("input-age"),
-        hba1c: val("input-hba1c"),
-        goalHba1c: val("input-goal-hba1c"),
-        weight: val("input-weight"),
-        height: val("input-height"),
-        bloodPressure: val("input-bp"),
-        medications: val("input-medications"),
-        challenge: val("input-challenge"),
-        meals: val("input-meals"),
-        labs: val("input-labs"),
-        activity: val("input-activity"),
-        uploadedLabs: uploadedFileText,
+        name: v("input-name"), email: v("input-email"), dtype: v("input-dtype"),
+        age: v("input-age"), sex: v("input-sex"), hba1c: v("input-hba1c"),
+        goalHba1c: v("input-goal-hba1c"), bp: v("input-bp"), weight: v("input-weight"),
+        height: v("input-height"), years: v("input-years"), meds: v("input-meds"),
+        challenge: v("input-challenge"), goal: v("input-goal"),
     };
 }
 
 function saveProfile() {
-    const p = gatherProfile();
+    const p = getProfile();
     localStorage.setItem("dc_profile", JSON.stringify(p));
-    if (p.name) {
-        document.getElementById("profile-status").classList.remove("hidden");
-        document.getElementById("profile-status").classList.add("flex");
-        document.getElementById("profile-name-display").textContent = p.name;
-    }
-    showToast("💾", "Profile saved!");
+    showBadge(p.name);
+    toast("💾", "Profile saved!");
 }
 
 function loadProfile() {
-    const saved = localStorage.getItem("dc_profile");
-    if (!saved) return;
+    const s = localStorage.getItem("dc_profile");
+    if (!s) return;
     try {
-        const p = JSON.parse(saved);
-        setVal("input-email", p.email);
-        setVal("input-name", p.name);
-        setVal("input-diabetes-type", p.diabetesType);
-        setVal("input-age", p.age);
-        setVal("input-hba1c", p.hba1c);
-        setVal("input-goal-hba1c", p.goalHba1c);
-        setVal("input-weight", p.weight);
-        setVal("input-height", p.height);
-        setVal("input-bp", p.bloodPressure);
-        setVal("input-medications", p.medications);
-        setVal("input-challenge", p.challenge);
-        setVal("input-meals", p.meals);
-        setVal("input-labs", p.labs);
-        setVal("input-activity", p.activity);
-        if (p.name) {
-            document.getElementById("profile-status").classList.remove("hidden");
-            document.getElementById("profile-status").classList.add("flex");
-            document.getElementById("profile-name-display").textContent = p.name;
-        }
-        showToast("👤", `Welcome back, ${p.name || "User"}!`);
+        const p = JSON.parse(s);
+        setV("input-name",p.name); setV("input-email",p.email); setV("input-dtype",p.dtype);
+        setV("input-age",p.age); setV("input-sex",p.sex); setV("input-hba1c",p.hba1c);
+        setV("input-goal-hba1c",p.goalHba1c); setV("input-bp",p.bp); setV("input-weight",p.weight);
+        setV("input-height",p.height); setV("input-years",p.years); setV("input-meds",p.meds);
+        setV("input-challenge",p.challenge); setV("input-goal",p.goal);
+        showBadge(p.name);
+        if (p.name) toast("👤", `Welcome back, ${p.name}!`);
     } catch(e) { console.error(e); }
 }
 
+function showBadge(name) {
+    if (!name) return;
+    const b = document.getElementById("profile-badge");
+    b.classList.remove("hidden"); b.classList.add("inline-flex");
+    document.getElementById("badge-name").textContent = name;
+}
+
 // ========== FILE UPLOAD ==========
-
-function handleFileUpload(event) {
-    const file = event.target.files[0];
+function onLabUpload(e) {
+    const file = e.target.files[0];
     if (!file) return;
-
-    const area = document.getElementById("upload-area");
-    area.innerHTML = `<p class="text-xs text-emerald-600 font-medium">📎 ${file.name}</p><p class="text-xs text-gray-400">${(file.size/1024).toFixed(1)} KB</p>`;
-
-    // Read text files directly
-    if (file.type.startsWith("text/") || file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
+    document.getElementById("lab-upload-status").innerHTML = `<p class="text-xs text-brand-600 font-semibold">✓ ${file.name}</p><p class="text-xs text-gray-400">${(file.size/1024).toFixed(0)} KB uploaded</p>`;
+    if (file.type.startsWith("text/") || file.name.match(/\.(txt|csv)$/)) {
+        new FileReader().onload = (ev) => { labFileText = ev.target.result; };
+        new FileReader().readAsText(file);
         const reader = new FileReader();
-        reader.onload = (e) => { uploadedFileText = e.target.result; };
+        reader.onload = (ev) => { labFileText = ev.target.result; };
         reader.readAsText(file);
-    } else if (file.type.startsWith("image/")) {
-        // For images, we'll pass a note to the AI that an image was uploaded
-        uploadedFileText = `[User uploaded a lab result image: ${file.name}. Please analyze based on the typed values below or ask the user to type key values from the image.]`;
     } else {
-        uploadedFileText = `[User uploaded file: ${file.name}. Type: ${file.type}]`;
+        labFileText = "[Lab image uploaded: " + file.name + ". Please analyze based on typed values below.]";
     }
 }
 
 // ========== TTS ==========
-
 function toggleTTS() {
     ttsEnabled = !ttsEnabled;
-    const btn = document.getElementById("tts-toggle");
-    const label = document.getElementById("tts-label");
-    if (ttsEnabled) {
-        label.textContent = "TTS On";
-        btn.classList.add("bg-emerald-100", "text-emerald-700");
-        btn.classList.remove("bg-gray-100", "text-gray-600");
-    } else {
-        label.textContent = "TTS Off";
-        btn.classList.remove("bg-emerald-100", "text-emerald-700");
-        btn.classList.add("bg-gray-100", "text-gray-600");
-        speechSynthesis.cancel();
-    }
+    document.getElementById("tts-label").textContent = ttsEnabled ? "On" : "Off";
+    document.getElementById("tts-btn").style.background = ttsEnabled ? "#dcfce7" : "";
+    if (!ttsEnabled) speechSynthesis.cancel();
 }
 
 function speakSection(id) {
-    const text = document.getElementById(id).innerText;
-    if (!text || text.includes("Fill") || text.includes("Log your") || text.includes("analyzing")) return;
+    const txt = document.getElementById(id)?.innerText;
+    if (!txt || txt.length < 20) return;
     speechSynthesis.cancel();
-    const chunks = text.match(/.{1,250}[.!?\n]|.{1,250}/g) || [text];
-    chunks.forEach(chunk => {
-        const u = new SpeechSynthesisUtterance(chunk.replace(/[📊⚠️📈🤖🔊💪🥗💧🩺✓✗⚡📋🧪]/g, ""));
-        u.rate = 0.95; u.pitch = 1;
-        speechSynthesis.speak(u);
-    });
+    const clean = txt.replace(/[🥗🧪⚡📋🤖🔊📧👤📊⚠️📈✓✗💪💧🩺🍽️🏃]/g, "");
+    const chunks = clean.match(/.{1,300}[.!?\n]|.{1,300}/g) || [clean];
+    chunks.forEach(c => { const u = new SpeechSynthesisUtterance(c); u.rate = 0.95; speechSynthesis.speak(u); });
 }
 
-// ========== RUN ALL ANALYSES ==========
+// ========== RUN ANALYSIS ==========
+async function runSingle(tool) {
+    const p = getProfile();
+    const outId = "out-" + tool;
+    const el = document.getElementById(outId);
+    el.innerHTML = `<div class="loading-state"><div class="spinner"></div>Analyzing with AI...</div>`;
 
-async function runAllAnalyses() {
-    if (isLoading) return;
-    const p = gatherProfile();
-    if (!p.name && !p.hba1c && !p.meals) {
-        showToast("⚠️", "Please fill in at least your name, HbA1c, or log a meal.");
-        return;
-    }
-    saveProfile();
-    isLoading = true;
-    const btn = document.getElementById("analyze-btn");
-    btn.disabled = true;
-    btn.innerHTML = `<div class="spinner"></div> Running 5 AI Analyses...`;
+    const prompt = buildPrompt(tool, p);
+    if (!prompt) { el.innerHTML = `<div class="placeholder-text">Please fill in the required inputs.</div>`; return; }
 
-    // Set all panels to loading
-    ["output-meal","output-lab","output-risk","output-plan","output-coach"].forEach(setLoading);
-
-    // Run all analyses in parallel
-    const [mealRes, labRes, riskRes, planRes, coachRes] = await Promise.allSettled([
-        callAgent(buildMealPrompt(p)),
-        callAgent(buildLabPrompt(p)),
-        callAgent(buildRiskPrompt(p)),
-        callAgent(buildPlanPrompt(p)),
-        callAgent(buildCoachPrompt(p)),
-    ]);
-
-    // Display results
-    allResults.meal = displayResult("output-meal", mealRes);
-    allResults.lab = displayResult("output-lab", labRes);
-    allResults.risk = displayResult("output-risk", riskRes);
-    allResults.plan = displayResult("output-plan", planRes);
-    allResults.coach = displayResult("output-coach", coachRes);
-
-    // Enable email button
-    document.getElementById("email-btn").disabled = false;
-
-    // TTS on first result
-    if (ttsEnabled && allResults.coach) speakSection("output-coach");
-
-    isLoading = false;
-    btn.disabled = false;
-    btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate All AI Analyses`;
-}
-
-// ========== PROMPTS FOR EACH TOOL ==========
-
-function buildMealPrompt(p) {
-    if (!p.meals) return null;
-    return `You are a diabetes meal analyzer. Analyze the following meal for a ${p.diabetesType} patient (HbA1c: ${p.hba1c || "unknown"}%).
-
-MEALS EATEN:
-${p.meals}
-
-Provide:
-1. Estimated total carbohydrates (grams)
-2. Glycemic Index classification for each food (Low/Medium/High)
-3. Estimated Glycemic Load of the full meal
-4. Overall impact on blood sugar (Low/Moderate/High)
-5. 3 healthier alternative swaps
-6. One practical tip to reduce the glucose spike from this meal
-
-Format with clear headers and bullet points.`;
-}
-
-function buildLabPrompt(p) {
-    const labData = p.uploadedLabs || p.labs;
-    if (!labData && !p.hba1c) return null;
-    return `You are a clinical lab interpreter for diabetes patients. Analyze these lab results for a ${p.age || "adult"} year old with ${p.diabetesType} diabetes.
-
-LAB RESULTS:
-${labData || `HbA1c: ${p.hba1c}%`}
-${p.bloodPressure ? `Blood Pressure: ${p.bloodPressure}` : ""}
-
-For EACH metric provided:
-1. State the value and its unit
-2. Compare against ADA (American Diabetes Association) reference ranges
-3. Flag if NORMAL, BORDERLINE, or OUT OF RANGE
-4. Explain what it means in simple language
-
-Then provide:
-- Overall assessment
-- Top 3 recommendations based on concerning values
-- When to retest
-
-Use clear formatting with ✓ for normal and ⚠️ for concerning values.`;
-}
-
-function buildRiskPrompt(p) {
-    if (!p.meals && !p.activity && !p.hba1c) return null;
-    return `You are a diabetes risk predictor. Assess near-term risks for this patient:
-
-PROFILE: ${p.diabetesType}, ${p.age || "?"} years old, HbA1c ${p.hba1c || "?"}%, Medications: ${p.medications || "unknown"}
-
-RECENT MEALS: ${p.meals || "No meal data"}
-ACTIVITY/GLUCOSE: ${p.activity || "No activity data"}
-CHALLENGE: ${p.challenge || "Not specified"}
-
-Analyze and provide:
-1. **Hypoglycemia Risk** (Low/Moderate/High) - based on meal gaps, exercise timing, medications
-2. **Hyperglycemia Risk** (Low/Moderate/High) - based on food choices, carb load
-3. **Glucose Variability Risk** - based on patterns described
-4. **Immediate Actions** - 2-3 specific things to do RIGHT NOW
-5. **When to Seek Help** - red flags to watch for
-
-Be specific and actionable. Use risk level badges.`;
-}
-
-function buildPlanPrompt(p) {
-    if (!p.name && !p.hba1c) return null;
-    return `You are a diabetes care plan generator. Create a personalized daily plan for:
-
-PATIENT: ${p.name || "Patient"}, ${p.age || "adult"} years old, ${p.weight || "?"}kg, ${p.height || "?"}cm
-DIABETES: ${p.diabetesType}, ${p.hba1c || "?"}% HbA1c, Goal: ${p.goalHba1c || "?"}%
-MEDICATIONS: ${p.medications || "unknown"}
-CHALLENGE: ${p.challenge || "general management"}
-
-Create a STRUCTURED DAILY PLAN with:
-
-**🍽️ NUTRITION PLAN** (6 time slots: wake, breakfast, morning snack, lunch, afternoon snack, dinner)
-- Specific food suggestions for each
-- Carb targets per meal
-- Key tips
-
-**💧 HYDRATION SCHEDULE**
-- Daily target (based on weight)
-- Timing recommendations
-
-**🏃 ACTIVITY PLAN**
-- Morning, midday, evening recommendations
-- Type, duration, and glucose precautions
-
-**📊 MONITORING CHECKLIST**
-- When to check glucose
-- What to log
-
-Keep it practical and achievable. Use emojis for visual clarity.`;
-}
-
-function buildCoachPrompt(p) {
-    return `You are an empathetic diabetes coach. Give a brief overall assessment for:
-
-PATIENT: ${p.name || "this patient"}, ${p.diabetesType}, Age ${p.age || "?"}, HbA1c ${p.hba1c || "?"}% (goal: ${p.goalHba1c || "?"}%)
-WEIGHT: ${p.weight || "?"}kg, BP: ${p.bloodPressure || "?"}
-MEDICATIONS: ${p.medications || "unknown"}
-CHALLENGE: ${p.challenge || "not specified"}
-MEALS TODAY: ${p.meals || "not logged"}
-ACTIVITY: ${p.activity || "not logged"}
-
-Provide:
-1. **Overall Status** - How are they doing? (1-2 sentences, warm and encouraging)
-2. **Top 3 Priorities** - Most important things to focus on this week
-3. **Quick Win** - One small thing they can do TODAY that makes a difference
-4. **Motivation** - An encouraging note personalized to their situation
-
-Be warm, empathetic, evidence-based. Keep it concise.`;
-}
-
-// ========== API CALL ==========
-
-async function callAgent(prompt) {
-    if (!prompt) return { skipped: true };
     try {
         const res = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-Session-Id": sessionId },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: prompt, session_id: sessionId }),
         });
         if (res.ok) {
             const data = await res.json();
-            return { success: true, text: data.response };
+            results[tool] = data.response;
+            el.innerHTML = formatMd(data.response);
+            document.getElementById("email-btn").disabled = false;
+            if (ttsEnabled) speakSection(outId);
         } else {
             const err = await res.json().catch(() => ({}));
-            return { error: err.error || `Error ${res.status}` };
+            el.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">Error: ${err.error || res.statusText}</div>`;
         }
     } catch (e) {
-        return { error: "Connection failed: " + e.message };
+        el.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">Connection failed. Check your internet.</div>`;
     }
 }
 
-function displayResult(elementId, promiseResult) {
-    const el = document.getElementById(elementId);
-    if (promiseResult.status === "rejected") {
-        el.innerHTML = errorHtml("Analysis failed. Try again.");
-        return null;
+function buildPrompt(tool, p) {
+    // Profile context string shared across all prompts
+    const ctx = `Patient: ${p.name||"User"}, ${p.age||"?"}yo ${p.sex||""}, ${p.dtype||"Type 2"} diabetes for ${p.years||"?"} years.
+HbA1c: ${p.hba1c||"?"}% (goal: ${p.goalHba1c||"?"}%), BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg, Height: ${p.height||"?"}cm.
+Medications: ${p.meds||"unknown"}. Challenge: ${p.challenge||"not specified"}. Goal: ${p.goal||"improve management"}.`;
+
+    const labData = labFileText || v("lab-input");
+
+    switch(tool) {
+        case "meal":
+            const meals = v("meal-input");
+            if (!meals) return null;
+            return `You are an expert diabetes nutritionist. DO NOT call any tools or functions. Respond directly.
+
+${ctx}
+
+The patient ate:
+${meals}
+
+Analyze this meal and provide:
+1. **Estimated Carbohydrates** — for each food item and total
+2. **Glycemic Index** — classify each item as Low (≤55), Medium (56-69), or High (≥70)
+3. **Overall Glycemic Load** — Low (<10), Moderate (10-20), or High (>20)
+4. **Blood Sugar Impact** — predicted spike severity and timing
+5. **Healthier Alternatives** — 3 specific swaps to reduce glycemic impact
+6. **Pro Tip** — one actionable tip to minimize the glucose spike from this meal
+
+Format clearly with headers and bullet points.`;
+
+        case "lab":
+            if (!labData && !p.hba1c) return null;
+            return `You are a clinical lab interpreter for diabetes care. DO NOT call any tools or functions. Respond directly.
+
+${ctx}
+
+Lab results provided:
+${labData || `HbA1c: ${p.hba1c}%`}
+
+For EACH lab value:
+- State the value with unit
+- Show the ADA reference range
+- Mark as ✅ Normal, ⚠️ Borderline, or 🔴 Out of Range
+- Brief plain-language explanation
+
+Then provide:
+- **Overall Assessment** (2-3 sentences)
+- **Top Concerns** (ranked by urgency)  
+- **Recommendations** (3 specific actions)
+- **Retest Timeline** (when to check again)
+
+Be precise with numbers and evidence-based.`;
+
+        case "risk":
+            const riskMeals = v("risk-meals");
+            const exercise = v("risk-exercise");
+            const glucose = v("risk-glucose");
+            const lastMeal = v("risk-lastmeal");
+            if (!riskMeals && !exercise && !glucose && !p.hba1c) return null;
+            return `You are a diabetes risk assessment specialist. DO NOT call any tools or functions. Respond directly.
+
+${ctx}
+
+Recent data:
+- Meals today: ${riskMeals || "not logged"}
+- Exercise: ${exercise || "none reported"}
+- Recent glucose readings: ${glucose || "not provided"} mg/dL
+- Last meal time: ${lastMeal || "unknown"}
+
+Assess these risks (rate each as LOW / MODERATE / HIGH with explanation):
+
+1. **🔻 Hypoglycemia Risk** — meal gaps, exercise timing, medication interactions
+2. **🔺 Hyperglycemia Risk** — carb load, missed medication, stress
+3. **↕️ Glucose Variability** — pattern analysis from readings
+4. **⏰ Time-Sensitive Risks** — anything needing action in the next 2-4 hours
+
+Then provide:
+- **Immediate Actions** (2-3 things to do RIGHT NOW)
+- **Red Flags** (when to seek emergency care)
+
+Be specific and practical.`;
+
+        case "plan":
+            const fitness = v("plan-fitness");
+            const diet = v("plan-diet");
+            const allergies = v("plan-allergies");
+            const notes = v("plan-notes");
+            return `You are a diabetes daily plan generator. DO NOT call any tools or functions. Respond directly.
+
+${ctx}
+Fitness level: ${fitness||"Moderate"}. Diet: ${diet||"No restriction"}. Allergies: ${allergies||"None"}. Notes: ${notes||"None"}.
+
+Create a COMPLETE daily plan:
+
+**🍽️ NUTRITION** (with times and specific foods):
+- Wake-up / Pre-breakfast
+- Breakfast (with carb target)
+- Mid-morning snack
+- Lunch (with carb target)
+- Afternoon snack
+- Dinner (with carb target)
+- Evening (if needed)
+
+**💧 HYDRATION** (daily target in mL + schedule)
+
+**🏃 ACTIVITY** (morning, post-meal, evening — type, duration, precautions)
+
+**📊 MONITORING** (when to check glucose, what to log)
+
+**💊 MEDICATION REMINDERS** (based on their meds)
+
+Make it realistic, culturally aware, and achievable.`;
+
+        case "coach":
+            const question = v("coach-input");
+            if (!question) return null;
+            return `You are a compassionate, evidence-based diabetes coach. DO NOT call any tools or functions. Respond directly.
+
+${ctx}
+${labData ? `\nRecent labs: ${labData}` : ""}
+
+Patient asks: "${question}"
+
+Respond with:
+- Direct answer to their question (clear, actionable)
+- Evidence or reasoning behind your advice
+- One motivational note personalized to them
+
+Keep it warm but professional. Use simple language.`;
     }
-    const result = promiseResult.value;
-    if (result.skipped) {
-        el.innerHTML = `<div class="bg-yellow-50 rounded-xl p-4 border border-yellow-200"><p class="text-sm text-yellow-700">ℹ️ Not enough input data for this analysis. Fill in the relevant fields.</p></div>`;
-        return null;
-    }
-    if (result.error) {
-        el.innerHTML = errorHtml(result.error);
-        return null;
-    }
-    el.innerHTML = `<div class="prose prose-sm max-w-none message-enter">${formatMd(result.text)}</div>`;
-    return result.text;
+    return null;
 }
 
-// ========== EMAIL REPORT ==========
-
+// ========== EMAIL ==========
 async function sendEmailReport() {
-    const email = val("input-email");
-    if (!email) { showToast("⚠️", "Enter your email in the profile section first."); return; }
+    const email = v("input-email");
+    if (!email) { toast("⚠️", "Add your email in the Profile tab first."); return; }
+    if (!Object.keys(results).length) { toast("⚠️", "Generate at least one analysis first."); return; }
 
     const btn = document.getElementById("email-btn");
-    btn.disabled = true;
-    btn.innerHTML = `<div class="spinner-sm"></div> Sending to ${email}...`;
+    btn.disabled = true; btn.textContent = "Sending...";
 
-    const profile = gatherProfile();
-    const fullReport = Object.entries(allResults)
-        .filter(([k, v]) => v)
-        .map(([k, v]) => `=== ${k.toUpperCase()} ===\n${v}`)
-        .join("\n\n");
+    const report = Object.entries(results).map(([k,v]) => `[${ {meal:"MEAL ANALYSIS",lab:"LAB INTERPRETATION",risk:"RISK ASSESSMENT",plan:"DAILY PLAN",coach:"AI COACHING"}[k]||k.toUpperCase()}]\n${v}`).join("\n\n---\n\n");
 
     try {
         const res = await fetch(`${CONFIG.API_ENDPOINT}/email-report`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, name: profile.name || "User", analysis: fullReport, profile }),
+            body: JSON.stringify({ email, name: v("input-name")||"User", analysis: report, profile: getProfile() }),
         });
-        if (res.ok) {
-            showToast("📧", `Report sent to ${email}!`);
-        } else {
-            // Fallback: download
-            downloadReport(email, profile, fullReport);
-        }
-    } catch {
-        downloadReport(email, profile, fullReport);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = `📧 Send Full Report to My Email`;
-    }
+        if (res.ok) { toast("📧", `Sent to ${email}!`); }
+        else { downloadFallback(email, report); }
+    } catch { downloadFallback(email, report); }
+    finally { btn.disabled = false; btn.textContent = "Send Report to My Email"; }
 }
 
-function downloadReport(email, profile, report) {
-    const content = `DiabetesControl AI Expert - Progress Report\nDate: ${new Date().toLocaleString()}\nPatient: ${profile.name || "N/A"}\nEmail: ${email}\n${"=".repeat(50)}\n\n${report}`;
-    const blob = new Blob([content], { type: "text/plain" });
+function downloadFallback(email, report) {
+    const txt = `DiabetesControl AI - Progress Report\nDate: ${new Date().toLocaleString()}\nEmail: ${email}\n${"=".repeat(50)}\n\n${report}`;
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `diabetes-report-${new Date().toISOString().split("T")[0]}.txt`;
+    a.href = URL.createObjectURL(new Blob([txt]));
+    a.download = `diabetes-report-${new Date().toISOString().slice(0,10)}.txt`;
     a.click();
-    showToast("📄", "Report downloaded (email service requires SES setup).");
+    toast("📄", "Downloaded report (SES email not configured yet).");
 }
 
 // ========== HELPERS ==========
+function v(id) { return document.getElementById(id)?.value?.trim() || ""; }
+function setV(id, val) { const el = document.getElementById(id); if (el && val) el.value = val; }
 
-function val(id) { return document.getElementById(id)?.value?.trim() || ""; }
-function setVal(id, v) { if (v && document.getElementById(id)) document.getElementById(id).value = v; }
-
-function setLoading(id) {
-    document.getElementById(id).innerHTML = `<div class="flex items-center justify-center py-6 gap-3"><div class="spinner"></div><span class="text-sm text-gray-400">AI analyzing...</span></div>`;
-}
-
-function errorHtml(msg) {
-    return `<div class="bg-red-50 rounded-xl p-4 border border-red-200"><p class="text-sm text-red-700">⚠️ ${escapeHtml(msg)}</p></div>`;
-}
-
-function showToast(icon, msg) {
+function toast(icon, msg) {
     const t = document.getElementById("toast");
     document.getElementById("toast-icon").textContent = icon;
-    document.getElementById("toast-message").textContent = msg;
-    t.classList.remove("translate-y-20", "opacity-0");
-    t.classList.add("translate-y-0", "opacity-100");
-    setTimeout(() => { t.classList.add("translate-y-20", "opacity-0"); t.classList.remove("translate-y-0", "opacity-100"); }, 3500);
+    document.getElementById("toast-msg").textContent = msg;
+    t.classList.remove("translate-y-16","opacity-0");
+    setTimeout(() => t.classList.add("translate-y-16","opacity-0"), 3500);
 }
 
 function formatMd(text) {
     if (!text) return "";
     return text
-        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        .replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>")
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.*?)\*/g, "<em>$1</em>")
-        .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-xs">$1</code>')
-        .replace(/^### (.*$)/gm, '<h4 class="font-semibold text-gray-800 mt-3 mb-1">$1</h4>')
-        .replace(/^## (.*$)/gm, '<h3 class="font-semibold text-gray-800 text-base mt-3 mb-1">$1</h3>')
-        .replace(/^# (.*$)/gm, '<h2 class="font-bold text-gray-900 text-lg mt-3 mb-2">$1</h2>')
-        .replace(/^- (.*$)/gm, '• $1<br>')
-        .replace(/^(\d+)\. (.*$)/gm, '$1. $2<br>')
-        .replace(/\n\n/g, '<br><br>')
-        .replace(/\n/g, '<br>');
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        .replace(/\*\*\*(.*?)\*\*\*/g,"<strong><em>$1</em></strong>")
+        .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g,"<em>$1</em>")
+        .replace(/`(.*?)`/g,'<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:0.8em">$1</code>')
+        .replace(/^#### (.*$)/gm,'<h4>$1</h4>')
+        .replace(/^### (.*$)/gm,'<h3>$1</h3>')
+        .replace(/^## (.*$)/gm,'<h2>$1</h2>')
+        .replace(/^# (.*$)/gm,'<h2>$1</h2>')
+        .replace(/^[-•] (.*$)/gm,'<li>$1</li>')
+        .replace(/^(\d+)\. (.*$)/gm,'<li>$1. $2</li>')
+        .replace(/((<li>.*<\/li>\n?)+)/g,'<ul>$1</ul>')
+        .replace(/\n\n/g,'<br><br>')
+        .replace(/\n/g,'<br>');
 }
-
-function escapeHtml(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }

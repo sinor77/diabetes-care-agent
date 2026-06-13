@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,291 +11,234 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' },
-                        accent: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        brand: { 50:'#f0fdf4', 100:'#dcfce7', 500:'#22c55e', 600:'#16a34a', 700:'#15803d', 800:'#166534' }
                     }
                 }
             }
         }
     </script>
 </head>
-<body class="min-h-full bg-gradient-to-br from-green-50 via-white to-blue-50">
-    <!-- Header -->
-    <header class="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-11 h-11 bg-gradient-to-br from-green-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <span class="text-xl text-white">🩺</span>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Top Nav -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white text-lg">🩺</span>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900">DiabetesControl AI Expert</h1>
-                    <p class="text-xs text-gray-500">Personalized AI Diabetes Analysis & Coaching</p>
-                </div>
+                <span class="font-bold text-gray-900 text-lg">DiabetesControl AI</span>
             </div>
-            <div class="flex items-center gap-3">
-                <span id="profile-status" class="hidden items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
-                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                    <span id="profile-name-display">Profile</span>
-                </span>
-                <button id="tts-toggle" onclick="toggleTTS()" class="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full hover:bg-gray-200 transition-colors" title="Toggle Text-to-Speech">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
-                    <span id="tts-label">TTS Off</span>
+            <div class="flex items-center gap-2">
+                <button id="tts-btn" onclick="toggleTTS()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 hover:bg-gray-100 transition" title="Text-to-Speech">
+                    🔊 <span id="tts-label">Off</span>
                 </button>
-                <span class="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    AI Active
+                <span id="profile-badge" class="hidden px-3 py-1.5 rounded-full text-xs bg-brand-50 text-brand-700 border border-brand-200">
+                    👤 <span id="badge-name">User</span>
                 </span>
             </div>
         </div>
-    </header>
+    </nav>
 
-    <!-- Welcome Banner -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-4">
-        <div class="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white shadow-xl">
-            <h2 class="text-2xl font-bold mb-2">Welcome To DiabetesControl AI</h2>
-            <p class="text-emerald-100 text-sm leading-relaxed max-w-3xl">
-                Get instant personalized diabetes analysis. Fill in your profile, log meals, upload lab results, 
-                and receive AI-powered insights across 6 specialized analysis modes.
-            </p>
-            <div class="flex gap-2 mt-4 flex-wrap">
-                <span class="text-xs bg-white/20 px-2 py-1 rounded-full">🥗 Meal Analyzer</span>
-                <span class="text-xs bg-white/20 px-2 py-1 rounded-full">🧪 Lab Interpreter</span>
-                <span class="text-xs bg-white/20 px-2 py-1 rounded-full">⚡ Risk Predictor</span>
-                <span class="text-xs bg-white/20 px-2 py-1 rounded-full">📋 Plan Generator</span>
-                <span class="text-xs bg-white/20 px-2 py-1 rounded-full">🔊 Text-to-Speech</span>
-                <span class="text-xs bg-white/20 px-2 py-1 rounded-full">📧 Email Reports</span>
+    <!-- Tab Navigation -->
+    <div class="bg-white border-b border-gray-200 sticky top-[57px] z-40">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex gap-1 overflow-x-auto py-2" id="tab-bar">
+                <button class="tab-btn active" data-tab="profile">👤 Profile</button>
+                <button class="tab-btn" data-tab="meal">🥗 Meal Analyzer</button>
+                <button class="tab-btn" data-tab="lab">🧪 Lab Interpreter</button>
+                <button class="tab-btn" data-tab="risk">⚡ Risk Predictor</button>
+                <button class="tab-btn" data-tab="plan">📋 Plan Generator</button>
+                <button class="tab-btn" data-tab="coach">🤖 AI Coach</button>
             </div>
-        </div>
-    </section>
-
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- LEFT: Inputs -->
-            <div class="lg:col-span-1 space-y-4">
-                
-                <!-- Profile Section -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <span class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-sm">👤</span>
-                        Your Profile
-                    </h3>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Email (for reports)</label>
-                            <input type="email" id="input-email" placeholder="your@email.com" class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Your Name</label>
-                            <input type="text" id="input-name" placeholder="Enter your name" class="input-field">
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Diabetes Type</label>
-                                <select id="input-diabetes-type" class="input-field">
-                                    <option value="Type 2">Type 2</option>
-                                    <option value="Type 1">Type 1</option>
-                                    <option value="Gestational">Gestational</option>
-                                    <option value="Prediabetes">Prediabetes</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Age</label>
-                                <input type="number" id="input-age" placeholder="45" min="18" max="100" class="input-field">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Current HbA1c %</label>
-                                <input type="text" id="input-hba1c" placeholder="7.2" class="input-field">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Goal HbA1c %</label>
-                                <input type="text" id="input-goal-hba1c" placeholder="6.5" class="input-field">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Weight (kg)</label>
-                                <input type="text" id="input-weight" placeholder="82" class="input-field">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Height (cm)</label>
-                                <input type="text" id="input-height" placeholder="175" class="input-field">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Blood Pressure</label>
-                            <input type="text" id="input-bp" placeholder="130/85" class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Medications</label>
-                            <input type="text" id="input-medications" placeholder="Metformin 1000mg, Insulin" class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Main Challenge</label>
-                            <input type="text" id="input-challenge" placeholder="Post-meal spikes, weight" class="input-field">
-                        </div>
-                        <button onclick="saveProfile()" class="w-full py-2 text-sm bg-blue-50 text-blue-700 font-medium rounded-lg hover:bg-blue-100 transition-colors border border-blue-200">
-                            💾 Save Profile
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Meal Input -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <span class="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center text-sm">🥗</span>
-                        Meal Log
-                    </h3>
-                    <textarea id="input-meals" rows="3" placeholder="What did you eat? e.g.&#10;Breakfast: oatmeal with banana, honey&#10;Lunch: rice, chicken, salad&#10;Dinner: pasta with vegetables" class="input-field resize-none"></textarea>
-                </div>
-
-                <!-- Lab Results Upload -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <span class="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center text-sm">🧪</span>
-                        Lab Results (Optional)
-                    </h3>
-                    <p class="text-xs text-gray-500 mb-2">Upload a photo/PDF of your lab results, or type them below.</p>
-                    <div class="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-emerald-400 transition-colors cursor-pointer" onclick="document.getElementById('file-upload').click()">
-                        <input type="file" id="file-upload" accept="image/*,.pdf,.txt,.csv" class="hidden" onchange="handleFileUpload(event)">
-                        <div id="upload-area">
-                            <svg class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <p class="text-xs text-gray-500">Click to upload lab photo or file</p>
-                            <p class="text-xs text-gray-400 mt-1">JPG, PNG, PDF, TXT supported</p>
-                        </div>
-                    </div>
-                    <textarea id="input-labs" rows="3" placeholder="Or type your results:&#10;HbA1c: 7.8%&#10;Fasting Glucose: 145 mg/dL&#10;LDL: 130 mg/dL&#10;Triglycerides: 180 mg/dL" class="input-field resize-none mt-3"></textarea>
-                </div>
-
-                <!-- Exercise & Activity -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <span class="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-sm">🏃</span>
-                        Activity & Glucose
-                    </h3>
-                    <textarea id="input-activity" rows="2" placeholder="Recent exercise? e.g. 30min walk, gym&#10;Recent glucose: 150, 180, 120 mg/dL" class="input-field resize-none"></textarea>
-                </div>
-
-                <!-- Generate All Button -->
-                <button onclick="runAllAnalyses()" id="analyze-btn" class="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-700 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    Generate All AI Analyses
-                </button>
-
-                <!-- Email Report -->
-                <button onclick="sendEmailReport()" id="email-btn" class="w-full py-3 bg-white text-gray-700 font-medium rounded-xl border border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50" disabled>
-                    📧 Send Full Report to My Email
-                </button>
-            </div>
-
-            <!-- RIGHT: Output Panels -->
-            <div class="lg:col-span-2 space-y-4">
-                
-                <!-- Meal Analyzer Output -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center text-sm">🥗</span>
-                            <h3 class="text-lg font-semibold text-gray-900">Meal Analyzer</h3>
-                        </div>
-                        <button onclick="speakSection('output-meal')" class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-sm" title="Read aloud">🔊</button>
-                    </div>
-                    <p class="text-xs text-gray-500 mb-2">Glycemic impact, carbs estimation, and healthier alternatives</p>
-                    <div id="output-meal" class="text-sm text-gray-600 leading-relaxed">
-                        <div class="bg-gray-50 rounded-xl p-6 text-center">
-                            <p class="text-gray-400 text-sm">Log your meals on the left and click "Generate" to see glycemic analysis.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Lab Interpreter Output -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center text-sm">🧪</span>
-                            <h3 class="text-lg font-semibold text-gray-900">Lab Interpreter</h3>
-                        </div>
-                        <button onclick="speakSection('output-lab')" class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-sm" title="Read aloud">🔊</button>
-                    </div>
-                    <p class="text-xs text-gray-500 mb-2">Parses HbA1c, glucose, lipids against ADA guidelines</p>
-                    <div id="output-lab" class="text-sm text-gray-600 leading-relaxed">
-                        <div class="bg-gray-50 rounded-xl p-6 text-center">
-                            <p class="text-gray-400 text-sm">Upload lab results or enter values to get interpretation.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Risk Predictor Output -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-sm">⚡</span>
-                            <h3 class="text-lg font-semibold text-gray-900">Risk Predictor</h3>
-                        </div>
-                        <button onclick="speakSection('output-risk')" class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-sm" title="Read aloud">🔊</button>
-                    </div>
-                    <p class="text-xs text-gray-500 mb-2">Near-term risk flags based on meals, exercise, and glucose trends</p>
-                    <div id="output-risk" class="text-sm text-gray-600 leading-relaxed">
-                        <div class="bg-gray-50 rounded-xl p-6 text-center">
-                            <p class="text-gray-400 text-sm">Enter your activity and glucose data to assess risk.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Plan Generator Output -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-sm">📋</span>
-                            <h3 class="text-lg font-semibold text-gray-900">Daily Plan Generator</h3>
-                        </div>
-                        <button onclick="speakSection('output-plan')" class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-sm" title="Read aloud">🔊</button>
-                    </div>
-                    <p class="text-xs text-gray-500 mb-2">Personalized nutrition, hydration & activity schedule</p>
-                    <div id="output-plan" class="text-sm text-gray-600 leading-relaxed">
-                        <div class="bg-gray-50 rounded-xl p-6 text-center">
-                            <p class="text-gray-400 text-sm">Fill your profile to get a personalized daily plan.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Overall AI Coaching -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-sm">🤖</span>
-                            <h3 class="text-lg font-semibold text-gray-900">AI Coaching Summary</h3>
-                        </div>
-                        <button onclick="speakSection('output-coach')" class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-sm" title="Read aloud">🔊</button>
-                    </div>
-                    <p class="text-xs text-gray-500 mb-2">Overall assessment combining all tool outputs</p>
-                    <div id="output-coach" class="text-sm text-gray-600 leading-relaxed">
-                        <div class="bg-gray-50 rounded-xl p-6 text-center">
-                            <p class="text-gray-400 text-sm">Complete your profile and generate analyses to receive AI coaching.</p>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </main>
-
-    <!-- Toast -->
-    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
-        <div class="bg-gray-900 text-white px-5 py-3 rounded-xl shadow-xl text-sm flex items-center gap-2">
-            <span id="toast-icon">✓</span>
-            <span id="toast-message">Saved!</span>
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-8 text-center">
-        <p class="text-xs text-gray-400">⚠️ AI-generated content for educational purposes. Always consult your healthcare provider.</p>
-        <p class="text-xs text-gray-300 mt-1">Powered by Amazon Bedrock | Claude 3 Haiku</p>
-    </footer>
+    <!-- Content Area -->
+    <main class="max-w-6xl mx-auto px-4 py-6">
+
+        <!-- TAB: Profile -->
+        <section id="tab-profile" class="tab-content active">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl border border-gray-200 p-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4">Your Health Profile</h2>
+                    <p class="text-sm text-gray-500 mb-4">Your profile is saved locally and auto-loads when you return.</p>
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="lbl">Name</label><input id="input-name" class="inp" placeholder="Your name"></div>
+                            <div><label class="lbl">Email</label><input id="input-email" type="email" class="inp" placeholder="your@email.com"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div><label class="lbl">Diabetes Type</label>
+                                <select id="input-dtype" class="inp"><option>Type 2</option><option>Type 1</option><option>Gestational</option><option>Prediabetes</option></select>
+                            </div>
+                            <div><label class="lbl">Age</label><input id="input-age" type="number" class="inp" placeholder="45"></div>
+                            <div><label class="lbl">Sex</label>
+                                <select id="input-sex" class="inp"><option value="male">Male</option><option value="female">Female</option></select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div><label class="lbl">HbA1c %</label><input id="input-hba1c" class="inp" placeholder="7.2"></div>
+                            <div><label class="lbl">Goal HbA1c %</label><input id="input-goal-hba1c" class="inp" placeholder="6.5"></div>
+                            <div><label class="lbl">Blood Pressure</label><input id="input-bp" class="inp" placeholder="130/85"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div><label class="lbl">Weight (kg)</label><input id="input-weight" class="inp" placeholder="82"></div>
+                            <div><label class="lbl">Height (cm)</label><input id="input-height" class="inp" placeholder="175"></div>
+                            <div><label class="lbl">Years w/ Diabetes</label><input id="input-years" type="number" class="inp" placeholder="5"></div>
+                        </div>
+                        <div><label class="lbl">Current Medications</label><input id="input-meds" class="inp" placeholder="Metformin 1000mg, Insulin Glargine 20u"></div>
+                        <div><label class="lbl">Main Challenge</label><input id="input-challenge" class="inp" placeholder="Post-meal spikes, weight management"></div>
+                        <div><label class="lbl">Your Goal</label><input id="input-goal" class="inp" placeholder="Lower HbA1c, lose 5kg, more energy"></div>
+                    </div>
+                    <button onclick="saveProfile()" class="w-full mt-4 py-2.5 bg-brand-600 text-white font-medium rounded-xl hover:bg-brand-700 transition">💾 Save Profile</button>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-gradient-to-br from-brand-600 to-teal-600 rounded-2xl p-6 text-white">
+                        <h3 class="font-bold text-lg mb-2">How it works</h3>
+                        <ol class="space-y-2 text-sm text-brand-100">
+                            <li>1. Fill in your profile (saved automatically)</li>
+                            <li>2. Navigate to each analysis tab</li>
+                            <li>3. Add tab-specific inputs (meals, labs, etc.)</li>
+                            <li>4. Click "Analyze" for AI-powered insights</li>
+                            <li>5. Email yourself a full progress report</li>
+                        </ol>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+                        <h3 class="font-bold text-gray-900 mb-3">📧 Email Progress Report</h3>
+                        <p class="text-sm text-gray-500 mb-3">Send all your analysis results to your email.</p>
+                        <button onclick="sendEmailReport()" id="email-btn" class="w-full py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 transition disabled:opacity-40" disabled>
+                            Send Report to My Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: Meal Analyzer -->
+        <section id="tab-meal" class="tab-content hidden">
+            <div class="grid md:grid-cols-5 gap-6">
+                <div class="md:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+                    <h2 class="font-bold text-gray-900 mb-1">Meal Input</h2>
+                    <p class="text-xs text-gray-500 mb-4">Describe what you ate or plan to eat.</p>
+                    <textarea id="meal-input" rows="8" class="inp resize-none" placeholder="Breakfast: 2 eggs, 1 toast with butter, orange juice&#10;&#10;Lunch: Rice (1 cup), grilled chicken, salad&#10;&#10;Dinner: Pasta with tomato sauce, garlic bread"></textarea>
+                    <button onclick="runSingle('meal')" class="w-full mt-4 py-2.5 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition">🥗 Analyze Meal</button>
+                </div>
+                <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-gray-900">Meal Analysis</h2>
+                        <button onclick="speakSection('out-meal')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                    </div>
+                    <div id="out-meal" class="output-box"><p class="placeholder-text">Enter your meals and click Analyze.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: Lab Interpreter -->
+        <section id="tab-lab" class="tab-content hidden">
+            <div class="grid md:grid-cols-5 gap-6">
+                <div class="md:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+                    <h2 class="font-bold text-gray-900 mb-1">Lab Results</h2>
+                    <p class="text-xs text-gray-500 mb-4">Upload a photo or type your lab values.</p>
+                    <div class="upload-box" onclick="document.getElementById('lab-file').click()">
+                        <input type="file" id="lab-file" class="hidden" accept="image/*,.pdf,.txt,.csv" onchange="onLabUpload(event)">
+                        <div id="lab-upload-status">
+                            <svg class="w-8 h-8 mx-auto text-gray-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <p class="text-xs text-gray-500">Click to upload lab photo/file</p>
+                        </div>
+                    </div>
+                    <textarea id="lab-input" rows="6" class="inp resize-none mt-3" placeholder="Or type values here:&#10;HbA1c: 7.8%&#10;Fasting Glucose: 145 mg/dL&#10;Total Cholesterol: 220 mg/dL&#10;LDL: 135 mg/dL&#10;HDL: 38 mg/dL&#10;Triglycerides: 195 mg/dL&#10;Creatinine: 1.1 mg/dL&#10;eGFR: 78"></textarea>
+                    <button onclick="runSingle('lab')" class="w-full mt-4 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition">🧪 Interpret Labs</button>
+                </div>
+                <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-gray-900">Lab Interpretation</h2>
+                        <button onclick="speakSection('out-lab')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                    </div>
+                    <div id="out-lab" class="output-box"><p class="placeholder-text">Upload or enter lab results for AI interpretation.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: Risk Predictor -->
+        <section id="tab-risk" class="tab-content hidden">
+            <div class="grid md:grid-cols-5 gap-6">
+                <div class="md:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+                    <h2 class="font-bold text-gray-900 mb-1">Recent Patterns</h2>
+                    <p class="text-xs text-gray-500 mb-4">Provide recent meals, exercise, and glucose readings.</p>
+                    <div class="space-y-3">
+                        <div><label class="lbl">Today's Meals & Times</label><textarea id="risk-meals" rows="3" class="inp resize-none" placeholder="7am: oatmeal&#10;1pm: sandwich&#10;(no dinner yet - it's 7pm)"></textarea></div>
+                        <div><label class="lbl">Exercise / Activity</label><input id="risk-exercise" class="inp" placeholder="e.g., 45min run at 5pm, no snack before"></div>
+                        <div><label class="lbl">Recent Glucose Readings (mg/dL)</label><input id="risk-glucose" class="inp" placeholder="e.g., 85, 210, 150, 68"></div>
+                        <div><label class="lbl">Last Meal Time</label><input id="risk-lastmeal" class="inp" placeholder="e.g., 1:00 PM"></div>
+                    </div>
+                    <button onclick="runSingle('risk')" class="w-full mt-4 py-2.5 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition">⚡ Predict Risks</button>
+                </div>
+                <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-gray-900">Risk Assessment</h2>
+                        <button onclick="speakSection('out-risk')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                    </div>
+                    <div id="out-risk" class="output-box"><p class="placeholder-text">Enter your recent patterns to get risk assessment.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: Plan Generator -->
+        <section id="tab-plan" class="tab-content hidden">
+            <div class="grid md:grid-cols-5 gap-6">
+                <div class="md:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+                    <h2 class="font-bold text-gray-900 mb-1">Plan Preferences</h2>
+                    <p class="text-xs text-gray-500 mb-4">Customize your daily plan generation.</p>
+                    <div class="space-y-3">
+                        <div><label class="lbl">Fitness Level</label>
+                            <select id="plan-fitness" class="inp"><option>Beginner</option><option selected>Moderate</option><option>Advanced</option></select>
+                        </div>
+                        <div><label class="lbl">Diet Preference</label>
+                            <select id="plan-diet" class="inp"><option>No restriction</option><option>Vegetarian</option><option>Vegan</option><option>Mediterranean</option><option>Low-carb</option><option>Halal</option></select>
+                        </div>
+                        <div><label class="lbl">Food Allergies</label><input id="plan-allergies" class="inp" placeholder="e.g., nuts, dairy, gluten"></div>
+                        <div><label class="lbl">Additional Notes</label><textarea id="plan-notes" rows="2" class="inp resize-none" placeholder="e.g., I work night shifts, limited cooking time"></textarea></div>
+                    </div>
+                    <button onclick="runSingle('plan')" class="w-full mt-4 py-2.5 bg-brand-600 text-white font-medium rounded-xl hover:bg-brand-700 transition">📋 Generate Plan</button>
+                </div>
+                <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-gray-900">Your Daily Plan</h2>
+                        <button onclick="speakSection('out-plan')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                    </div>
+                    <div id="out-plan" class="output-box"><p class="placeholder-text">Fill your profile and preferences, then generate.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: AI Coach -->
+        <section id="tab-coach" class="tab-content hidden">
+            <div class="grid md:grid-cols-5 gap-6">
+                <div class="md:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+                    <h2 class="font-bold text-gray-900 mb-1">Ask Your AI Coach</h2>
+                    <p class="text-xs text-gray-500 mb-4">Ask anything about your diabetes management.</p>
+                    <textarea id="coach-input" rows="6" class="inp resize-none" placeholder="Examples:&#10;- How can I prevent morning highs?&#10;- Is 150 mg/dL 2hr after lunch okay?&#10;- What snack before exercise?&#10;- Explain my HbA1c trend"></textarea>
+                    <button onclick="runSingle('coach')" class="w-full mt-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition">🤖 Ask Coach</button>
+                </div>
+                <div class="md:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-gray-900">AI Response</h2>
+                        <button onclick="speakSection('out-coach')" class="text-sm hover:bg-gray-100 p-1.5 rounded-lg">🔊</button>
+                    </div>
+                    <div id="out-coach" class="output-box"><p class="placeholder-text">Ask a question to get personalized coaching.</p></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 translate-y-16 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <div class="bg-gray-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-sm flex items-center gap-2">
+            <span id="toast-icon">✓</span><span id="toast-msg">Done</span>
+        </div>
+    </div>
 
     <script src="config.js"></script>
     <script src="app.js"></script>
