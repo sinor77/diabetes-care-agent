@@ -899,6 +899,26 @@ function showAuthError(msg) {
     el.classList.remove("hidden");
 }
 
+function signInAsDoctor() {
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+    if (!email || !password) { showAuthError("Enter email and password first."); return; }
+
+    const userPool = getUserPool();
+    const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: password });
+    const userData = { Username: email, Pool: userPool };
+    const cogUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+    cogUser.authenticateUser(authDetails, {
+        onSuccess: (session) => {
+            localStorage.setItem("dc_cognito_email", email);
+            localStorage.setItem("dc_role", "expert");
+            window.location.href = "doctor.html";
+        },
+        onFailure: (err) => { showAuthError(err.message); }
+    });
+}
+
 // Check for existing Cognito session on load
 document.addEventListener("DOMContentLoaded", () => { setTimeout(checkExistingSession, 500); });
 
