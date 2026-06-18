@@ -121,6 +121,22 @@
         }
         document.getElementById("doctor-name").textContent = `Dr. ${email.split("@")[0]}`;
         loadPatients();
+        loadDoctorProfile();
+    }
+
+    async function loadDoctorProfile() {
+        const email = localStorage.getItem("dc_cognito_email");
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.profile) {
+                    const p = data.profile;
+                    const verified = p.verified === true || p.verified === "true";
+                    document.getElementById("doctor-name").innerHTML = `Dr. ${p.name || email.split("@")[0]} ${verified ? '<span class="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full ml-1">✓ Verified</span>' : '<span class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full ml-1">⏳ Pending Verification</span>'}`;
+                }
+            }
+        } catch(e) {}
     }
 
     async function loadPatients() {
@@ -187,7 +203,36 @@
             const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`);
             if (res.ok) {
                 const data = await res.json();
-                if (data.profile) renderPatientDetail(data.profile);
+                if (data.profile) {
+                    renderPatientDetail(data.profile);
+                    // Show patient's saved analyses if available
+                    if (data.profile._userData) {
+                        try {
+                            const ud = JSON.parse(data.profile._userData);
+                            if (ud.insights) {
+                                document.getElementById("patient-detail").innerHTML += `
+                                    <div class="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                        <span class="text-xs font-medium text-purple-700 dark:text-purple-300">💡 Patient's Latest AI Insights:</span>
+                                        <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.insights.substring(0,800)}${ud.insights.length>800?"...":""}</p>
+                                    </div>`;
+                            }
+                            if (ud.results && ud.results.lab) {
+                                document.getElementById("patient-detail").innerHTML += `
+                                    <div class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                        <span class="text-xs font-medium text-yellow-700 dark:text-yellow-300">🧪 Patient's Lab Interpretation:</span>
+                                        <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.lab.substring(0,600)}${ud.results.lab.length>600?"...":""}</p>
+                                    </div>`;
+                            }
+                            if (ud.results && ud.results.meal) {
+                                document.getElementById("patient-detail").innerHTML += `
+                                    <div class="mt-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                        <span class="text-xs font-medium text-orange-700 dark:text-orange-300">🥗 Patient's Meal Analysis:</span>
+                                        <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.meal.substring(0,400)}${ud.results.meal.length>400?"...":""}</p>
+                                    </div>`;
+                            }
+                        } catch(e) {}
+                    }
+                }
             }
             // Load health logs for charts
             const logsRes = await fetch(`${CONFIG.API_ENDPOINT}/health-logs?email=${encodeURIComponent(email)}`);

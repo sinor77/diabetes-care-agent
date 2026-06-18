@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Diabetes Control AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#f0fdf4',100:'#dcfce7',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534'}}}}}</script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background-color:rgb(172,255,203)"><span class="text-lg">🩺</span></div>
+                <span class="font-bold text-gray-900 dark:text-white text-lg">Admin Panel</span>
+                <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">Admin</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleTheme()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 dark:border-gray-600"><span id="theme-icon">🌙</span></button>
+                <a href="index.html" class="px-3 py-1.5 rounded-full text-xs bg-gray-600 text-white">← Back to App</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <!-- Admin Login -->
+        <div id="admin-login" class="max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="font-bold text-gray-900 dark:text-white mb-4">🔐 Admin Access</h2>
+            <input id="admin-pass" type="password" class="inp mb-3" placeholder="Admin password">
+            <button onclick="adminLogin()" class="w-full py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition">Enter Admin Panel</button>
+        </div>
+
+        <!-- Admin Dashboard (hidden until login) -->
+        <div id="admin-dashboard" class="hidden space-y-6">
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                    <p class="text-xs text-gray-500">Total Users</p>
+                    <p id="admin-total" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                    <p class="text-xs text-gray-500">Doctors (Verified)</p>
+                    <p id="admin-verified" class="text-2xl font-bold text-green-600">0</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                    <p class="text-xs text-gray-500">Doctors (Pending)</p>
+                    <p id="admin-pending" class="text-2xl font-bold text-orange-600">0</p>
+                </div>
+            </div>
+
+            <!-- Doctor Verification -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="font-bold text-gray-900 dark:text-white mb-4">👨‍⚕️ Doctor Verification</h2>
+                <div id="doctor-verify-list" class="space-y-3">
+                    <p class="text-sm text-gray-400 text-center py-4">Loading...</p>
+                </div>
+            </div>
+
+            <!-- All Users -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="font-bold text-gray-900 dark:text-white mb-4">👥 All Users</h2>
+                <div id="all-users-list" class="space-y-2 max-h-[400px] overflow-y-auto">
+                    <p class="text-sm text-gray-400 text-center py-4">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="config.js?v=5"></script>
+    <script>
+    const ADMIN_PASSWORD = "diabetes2025admin";
+
+    function adminLogin() {
+        const pass = document.getElementById("admin-pass").value;
+        if (pass === ADMIN_PASSWORD) {
+            document.getElementById("admin-login").classList.add("hidden");
+            document.getElementById("admin-dashboard").classList.remove("hidden");
+            loadAdminData();
+        } else {
+            alert("Wrong password.");
+        }
+    }
+
+    async function loadAdminData() {
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/patients`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const all = data.patients || [];
+            
+            // Also get doctors
+            const dRes = await fetch(`${CONFIG.API_ENDPOINT}/doctors`);
+            const dData = dRes.ok ? await dRes.json() : {doctors:[]};
+            const doctors = dData.doctors || [];
+
+            const totalUsers = all.length + doctors.length;
+            const verified = doctors.filter(d => d.verified === true || d.verified === "true");
+            const pending = doctors.filter(d => !d.verified || d.verified === "false");
+
+            document.getElementById("admin-total").textContent = totalUsers;
+            document.getElementById("admin-verified").textContent = verified.length;
+            document.getElementById("admin-pending").textContent = pending.length;
+
+            // Render doctor verification list
+            const verifyEl = document.getElementById("doctor-verify-list");
+            if (!doctors.length) {
+                verifyEl.innerHTML = `<p class="text-sm text-gray-400 text-center">No doctor accounts found.</p>`;
+            } else {
+                verifyEl.innerHTML = doctors.map(d => `
+                    <div class="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">Dr. ${d.name || d.email.split("@")[0]}</p>
+                            <p class="text-xs text-gray-500">${d.email}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${(d.verified === true || d.verified === "true") 
+                                ? `<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">✓ Verified</span>
+                                   <button onclick="updateVerification('${d.email}', false)" class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">Revoke</button>`
+                                : `<span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">⏳ Pending</span>
+                                   <button onclick="updateVerification('${d.email}', true)" class="text-xs px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">Verify</button>`
+                            }
+                        </div>
+                    </div>
+                `).join("");
+            }
+
+            // Render all users
+            const usersEl = document.getElementById("all-users-list");
+            const allUsers = [...all.map(u => ({...u, _displayRole: "Patient"})), ...doctors.map(d => ({...d, _displayRole: "Doctor"}))];
+            usersEl.innerHTML = allUsers.map(u => `
+                <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700">
+                    <div>
+                        <span class="text-sm text-gray-900 dark:text-white">${u.name || u.email.split("@")[0]}</span>
+                        <span class="text-xs text-gray-500 ml-2">${u.email}</span>
+                    </div>
+                    <span class="text-xs ${u._displayRole==='Doctor'?'text-blue-600':'text-gray-500'}">${u._displayRole}</span>
+                </div>
+            `).join("");
+
+        } catch(e) { console.error(e); }
+    }
+
+    async function updateVerification(email, verified) {
+        try {
+            // Load current profile, update verified field, save back
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.profile) {
+                    const updated = {...data.profile, verified: verified};
+                    await fetch(`${CONFIG.API_ENDPOINT}/profile`, {
+                        method: "POST",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify(updated),
+                    });
+                    alert(`Doctor ${email} ${verified ? "verified" : "revoked"} successfully.`);
+                    loadAdminData();
+                }
+            }
+        } catch(e) { alert("Failed to update."); }
+    }
+
+    function toggleTheme() {
+        const isDark = document.documentElement.classList.toggle("dark");
+        localStorage.setItem("dc_theme", isDark?"dark":"light");
+        document.getElementById("theme-icon").textContent = isDark?"☀️":"🌙";
+    }
+    (function(){if(localStorage.getItem("dc_theme")==="dark"){document.documentElement.classList.add("dark");document.getElementById("theme-icon").textContent="☀️";}})();
+    </script>
+</body>
+</html>

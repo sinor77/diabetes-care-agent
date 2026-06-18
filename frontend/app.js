@@ -797,6 +797,12 @@ function signUp(email, password) {
     userPool.signUp(email, password, attributeList, null, (err, result) => {
         if (err) { showAuthError(err.message); return; }
         localStorage.setItem("dc_role", role);
+        // Save role to DynamoDB immediately so doctors appear in list
+        fetch(`${CONFIG.API_ENDPOINT}/profile`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, _role: role, name: email.split("@")[0], verified: role === "patient" }),
+        }).catch(() => {});
         toast("✅", "Account created! Check email for verification code.");
         switchAuthMode("confirm");
     });
@@ -940,8 +946,8 @@ async function loadDoctors() {
         const res = await fetch(`${CONFIG.API_ENDPOINT}/doctors`);
         if (res.ok) {
             const data = await res.json();
-            const doctors = data.doctors || [];
-            if (!doctors.length) { el.innerHTML = `<p class="text-sm text-gray-400 text-center">No doctors available yet.</p>`; return; }
+            const doctors = (data.doctors || []).filter(d => d.verified === true || d.verified === "true");
+            if (!doctors.length) { el.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">No verified doctors available yet.</p>`; return; }
             el.innerHTML = doctors.map(d => `
                 <button onclick="selectDoctor('${d.email}')" class="w-full text-left px-3 py-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700 transition">
                     <div class="flex items-center gap-2">
@@ -949,6 +955,7 @@ async function loadDoctors() {
                         <div>
                             <p class="text-sm font-medium text-gray-900 dark:text-white">Dr. ${(d.name || d.email.split("@")[0])}</p>
                             <p class="text-xs text-gray-500">${d.email}</p>
+                            <span class="text-xs text-green-600">✓ Verified</span>
                         </div>
                     </div>
                 </button>

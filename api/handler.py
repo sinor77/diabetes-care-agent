@@ -73,7 +73,14 @@ def _list_doctors() -> dict:
     doctors = []
     for item in response.get("Items", []):
         if item.get("_role") == "expert":
-            clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items() if not k.startswith("_")}
+            clean = {}
+            for k, v in item.items():
+                if isinstance(v, Decimal):
+                    clean[k] = int(v) if v == int(v) else float(v)
+                elif isinstance(v, bool):
+                    clean[k] = v
+                else:
+                    clean[k] = v
             doctors.append(clean)
     return {"doctors": doctors}
 
