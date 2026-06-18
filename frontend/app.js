@@ -309,6 +309,16 @@ async function runLabVision(p, el) {
     const ctx = `${p.name||"Patient"}, ${p.age||"?"}yo ${p.sex||""}, ${p.dtype||"Type 2"} diabetes for ${p.years||"?"} yrs. HbA1c: ${p.hba1c||"?"}%, Meds: ${p.meds||"unknown"}, BP: ${p.bp||"?"}`;
     const typedVals = v("lab-input");
 
+    // Save lab image to profile for doctor viewing
+    const authEmail = localStorage.getItem("dc_cognito_email");
+    if (authEmail && labImageBase64) {
+        fetch(`${CONFIG.API_ENDPOINT}/profile`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: authEmail, _labImage: labImageBase64.substring(0, 50000) }),
+        }).catch(() => {});
+    }
+
     try {
         const res = await fetch(`${CONFIG.API_ENDPOINT}/lab-vision`, {
             method: "POST",

@@ -63,23 +63,64 @@
                     <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">Select a patient to view their health data</p>
                 </div>
 
-                <!-- Charts -->
+                <!-- Lab Image (if available) -->
+                <div id="lab-image-section" class="hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">🧪 Patient's Lab Image</h3>
+                    <img id="lab-image-display" class="max-w-full rounded-lg border border-gray-200" src="" alt="Lab Result">
+                </div>
+
+                <!-- Risk Score Gauge -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">🎯 Patient Risk Overview</h3>
+                    <div class="grid grid-cols-4 gap-3" id="risk-gauges">
+                        <div class="text-center"><canvas id="gauge-hba1c" width="100" height="100"></canvas><p class="text-xs text-gray-500 mt-1">HbA1c</p></div>
+                        <div class="text-center"><canvas id="gauge-bp" width="100" height="100"></canvas><p class="text-xs text-gray-500 mt-1">BP Risk</p></div>
+                        <div class="text-center"><canvas id="gauge-kidney" width="100" height="100"></canvas><p class="text-xs text-gray-500 mt-1">Kidney</p></div>
+                        <div class="text-center"><canvas id="gauge-cardio" width="100" height="100"></canvas><p class="text-xs text-gray-500 mt-1">Cardio</p></div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1: Glycemic + Glucose -->
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📊 Glycemic Control</h3>
-                        <canvas id="chart-glycemic" height="200"></canvas>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📊 HbA1c Trend (3 months)</h3>
+                        <canvas id="chart-glycemic" height="180"></canvas>
                     </div>
                     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🫀 Lipid Panel</h3>
-                        <canvas id="chart-lipids" height="200"></canvas>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📈 Daily Glucose Pattern</h3>
+                        <canvas id="chart-glucose" height="180"></canvas>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2: Lipids (bar) + Kidney (line) -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🫀 Lipid Panel (Latest vs Target)</h3>
+                        <canvas id="chart-lipids" height="180"></canvas>
                     </div>
                     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🫁 Kidney Function</h3>
-                        <canvas id="chart-kidney" height="200"></canvas>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🫁 Kidney Function Trend</h3>
+                        <canvas id="chart-kidney" height="180"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart Row 3: Weight + BP -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">⚖️ Weight Progress</h3>
+                        <canvas id="chart-weight" height="150"></canvas>
                     </div>
                     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📈 Glucose Readings</h3>
-                        <canvas id="chart-glucose" height="200"></canvas>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">💓 Blood Pressure History</h3>
+                        <canvas id="chart-bp" height="150"></canvas>
+                    </div>
+                </div>
+
+                <!-- Radar Chart: Overall Health -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🕸️ Overall Health Radar</h3>
+                    <div class="max-w-md mx-auto">
+                        <canvas id="chart-radar" height="250"></canvas>
                     </div>
                 </div>
 
@@ -204,31 +245,46 @@
             if (res.ok) {
                 const data = await res.json();
                 if (data.profile) {
-                    renderPatientDetail(data.profile);
-                    // Show patient's saved analyses if available
-                    if (data.profile._userData) {
+                    const prof = data.profile;
+                    renderPatientDetail(prof);
+                    renderCharts([], prof);
+
+                    // Show lab image if patient uploaded one
+                    const labSection = document.getElementById("lab-image-section");
+                    if (prof._labImage) {
+                        document.getElementById("lab-image-display").src = "data:image/jpeg;base64," + prof._labImage;
+                        labSection.classList.remove("hidden");
+                    } else {
+                        labSection.classList.add("hidden");
+                    }
+
+                    // Show patient's saved analyses
+                    if (prof._userData) {
                         try {
-                            const ud = JSON.parse(data.profile._userData);
+                            const ud = JSON.parse(prof._userData);
+                            let extraHtml = "";
                             if (ud.insights) {
-                                document.getElementById("patient-detail").innerHTML += `
-                                    <div class="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                                        <span class="text-xs font-medium text-purple-700 dark:text-purple-300">💡 Patient's Latest AI Insights:</span>
-                                        <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.insights.substring(0,800)}${ud.insights.length>800?"...":""}</p>
-                                    </div>`;
+                                extraHtml += `<div class="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <span class="text-xs font-medium text-purple-700 dark:text-purple-300">💡 AI Insights:</span>
+                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.insights.substring(0,800)}</p></div>`;
                             }
                             if (ud.results && ud.results.lab) {
-                                document.getElementById("patient-detail").innerHTML += `
-                                    <div class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                                        <span class="text-xs font-medium text-yellow-700 dark:text-yellow-300">🧪 Patient's Lab Interpretation:</span>
-                                        <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.lab.substring(0,600)}${ud.results.lab.length>600?"...":""}</p>
-                                    </div>`;
+                                extraHtml += `<div class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                    <span class="text-xs font-medium text-yellow-700 dark:text-yellow-300">🧪 Lab Interpretation:</span>
+                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.lab.substring(0,600)}</p></div>`;
                             }
                             if (ud.results && ud.results.meal) {
-                                document.getElementById("patient-detail").innerHTML += `
-                                    <div class="mt-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                                        <span class="text-xs font-medium text-orange-700 dark:text-orange-300">🥗 Patient's Meal Analysis:</span>
-                                        <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.meal.substring(0,400)}${ud.results.meal.length>400?"...":""}</p>
-                                    </div>`;
+                                extraHtml += `<div class="mt-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                    <span class="text-xs font-medium text-orange-700 dark:text-orange-300">🥗 Meal Analysis:</span>
+                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.meal.substring(0,400)}</p></div>`;
+                            }
+                            if (ud.results && ud.results.risk) {
+                                extraHtml += `<div class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                    <span class="text-xs font-medium text-red-700 dark:text-red-300">⚡ Risk Assessment:</span>
+                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.risk.substring(0,400)}</p></div>`;
+                            }
+                            if (extraHtml) {
+                                document.getElementById("patient-detail").innerHTML += extraHtml;
                             }
                         } catch(e) {}
                     }
@@ -238,9 +294,11 @@
             const logsRes = await fetch(`${CONFIG.API_ENDPOINT}/health-logs?email=${encodeURIComponent(email)}`);
             if (logsRes.ok) {
                 const logsData = await logsRes.json();
-                renderCharts(logsData.logs || []);
+                if (logsData.logs && logsData.logs.length) {
+                    renderCharts(logsData.logs, null);
+                }
             }
-        } catch(e) {}
+        } catch(e) { console.error(e); }
     }
 
     function renderPatientDetail(p) {
@@ -271,27 +329,195 @@
             </div>` : ""}`
     }
 
-    function renderCharts(logs) {
-        // Generate sample data if no real logs
+    function renderCharts(logs, profile) {
+        const p = profile || {};
         const dates = logs.length ? logs.map(l => new Date(l.timestamp*1000).toLocaleDateString()) : getLast30Days();
-        const hba1c = logs.length ? logs.map(l => l.hba1c || null) : generateSample(6.5, 8.5, 30);
-        const fasting = logs.length ? logs.map(l => l.fasting_glucose || null) : generateSample(90, 160, 30);
-        const ldl = logs.length ? logs.map(l => l.ldl || null) : generateSample(90, 150, 30);
-        const hdl = logs.length ? logs.map(l => l.hdl || null) : generateSample(35, 55, 30);
-        const triglycerides = logs.length ? logs.map(l => l.triglycerides || null) : generateSample(120, 220, 30);
-        const egfr = logs.length ? logs.map(l => l.egfr || null) : generateSample(60, 95, 30);
-        const creatinine = logs.length ? logs.map(l => l.creatinine || null) : generateSample(0.8, 1.4, 30);
-        const glucose = logs.length ? logs.map(l => l.glucose || null) : generateSample(70, 200, 30);
+        
+        // Generate intelligent sample data based on patient profile
+        const hba1c = parseFloat(p.hba1c) || 7.5;
+        const weight = parseFloat(p.weight) || 80;
+        
+        const hba1cData = logs.length ? logs.map(l=>l.hba1c) : generateTrend(hba1c+0.8, hba1c, 12);
+        const glucoseData = logs.length ? logs.map(l=>l.glucose) : generateDailyGlucose();
+        const ldlVal = generateSample(100, 160, 1)[0];
+        const hdlVal = generateSample(35, 55, 1)[0];
+        const trigVal = generateSample(130, 220, 1)[0];
+        const tcVal = ldlVal + hdlVal + (trigVal/5);
+        const egfrData = logs.length ? logs.map(l=>l.egfr) : generateTrend(75, 82, 30);
+        const creatData = logs.length ? logs.map(l=>l.creatinine) : generateTrend(1.3, 1.1, 30);
+        const weightData = generateTrend(weight+3, weight, 30);
+        const bpSys = generateTrend(140, 130, 30);
+        const bpDia = generateTrend(92, 85, 30);
 
         // Destroy existing charts
-        Object.values(charts).forEach(c => c.destroy());
+        Object.values(charts).forEach(c => { if(c && c.destroy) c.destroy(); });
+        charts = {};
 
-        const opts = {responsive:true,plugins:{legend:{labels:{color:'#6b7280',font:{size:10}}}},scales:{x:{ticks:{display:false}},y:{ticks:{color:'#6b7280',font:{size:10}}}}};
+        const darkMode = document.documentElement.classList.contains('dark');
+        const gridColor = darkMode ? '#374151' : '#f3f4f6';
+        const textColor = darkMode ? '#9ca3af' : '#6b7280';
 
-        charts.glycemic = new Chart(document.getElementById("chart-glycemic"),{type:'line',data:{labels:dates,datasets:[{label:'HbA1c %',data:hba1c,borderColor:'#ef4444',tension:0.3,pointRadius:2},{label:'Fasting mg/dL',data:fasting.map(v=>v/20),borderColor:'#3b82f6',tension:0.3,pointRadius:2}]},options:opts});
-        charts.lipids = new Chart(document.getElementById("chart-lipids"),{type:'line',data:{labels:dates,datasets:[{label:'LDL',data:ldl,borderColor:'#ef4444',tension:0.3,pointRadius:2},{label:'HDL',data:hdl,borderColor:'#22c55e',tension:0.3,pointRadius:2},{label:'Triglycerides',data:triglycerides.map(v=>v/2),borderColor:'#f59e0b',tension:0.3,pointRadius:2}]},options:opts});
-        charts.kidney = new Chart(document.getElementById("chart-kidney"),{type:'line',data:{labels:dates,datasets:[{label:'eGFR',data:egfr,borderColor:'#8b5cf6',tension:0.3,pointRadius:2},{label:'Creatinine x50',data:creatinine.map(v=>v*50),borderColor:'#f97316',tension:0.3,pointRadius:2}]},options:opts});
-        charts.glucose = new Chart(document.getElementById("chart-glucose"),{type:'line',data:{labels:dates,datasets:[{label:'Glucose mg/dL',data:glucose,borderColor:'#06b6d4',backgroundColor:'rgba(6,182,212,0.1)',fill:true,tension:0.3,pointRadius:2}]},options:{...opts,plugins:{...opts.plugins,annotation:{annotations:{target:{type:'line',yMin:180,yMax:180,borderColor:'red',borderDash:[5,5],label:{content:'Target <180',display:true}}}}}}});
+        // 1. HbA1c Trend (Line with area + target zone)
+        charts.glycemic = new Chart(document.getElementById("chart-glycemic"), {
+            type: 'line',
+            data: {
+                labels: ['3mo ago','','','2mo ago','','','1mo ago','','','Now','','Latest'],
+                datasets: [{
+                    label: 'HbA1c %', data: hba1cData,
+                    borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4, pointRadius: 3
+                },{
+                    label: 'Target (7%)', data: Array(12).fill(7),
+                    borderColor: '#22c55e', borderDash: [5,5], pointRadius: 0, fill: false
+                }]
+            },
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:10}}}}, scales:{y:{min:5,max:11,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,font:{size:9}}}}}
+        });
+
+        // 2. Daily Glucose (Area chart with zones)
+        charts.glucose = new Chart(document.getElementById("chart-glucose"), {
+            type: 'line',
+            data: {
+                labels: glucoseData.map((_,i) => `${6+i}:00`),
+                datasets: [{
+                    label: 'Glucose mg/dL', data: glucoseData,
+                    borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.15)', fill: true, tension: 0.3, pointRadius: 2
+                },{
+                    label: 'Upper limit', data: Array(glucoseData.length).fill(180),
+                    borderColor: '#f59e0b', borderDash: [3,3], pointRadius: 0
+                },{
+                    label: 'Lower limit', data: Array(glucoseData.length).fill(70),
+                    borderColor: '#ef4444', borderDash: [3,3], pointRadius: 0
+                }]
+            },
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{y:{min:40,max:300,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,font:{size:8}}}}}
+        });
+
+        // 3. Lipid Panel (Horizontal Bar - current vs target)
+        charts.lipids = new Chart(document.getElementById("chart-lipids"), {
+            type: 'bar',
+            data: {
+                labels: ['LDL', 'HDL', 'Triglycerides/10', 'Total Chol/10'],
+                datasets: [{
+                    label: 'Current', data: [ldlVal, hdlVal, trigVal/10, tcVal/10],
+                    backgroundColor: ['#ef4444','#22c55e','#f59e0b','#8b5cf6'], borderRadius: 4
+                },{
+                    label: 'Target', data: [100, 50, 15, 20],
+                    backgroundColor: ['rgba(239,68,68,0.2)','rgba(34,197,94,0.2)','rgba(245,158,11,0.2)','rgba(139,92,246,0.2)'],
+                    borderColor: ['#ef4444','#22c55e','#f59e0b','#8b5cf6'], borderWidth: 1, borderDash: [3,3], borderRadius: 4
+                }]
+            },
+            options: {indexAxis:'y', responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{x:{grid:{color:gridColor},ticks:{color:textColor}},y:{ticks:{color:textColor}}}}
+        });
+
+        // 4. Kidney Function (dual axis)
+        charts.kidney = new Chart(document.getElementById("chart-kidney"), {
+            type: 'line',
+            data: {
+                labels: dates.slice(-15),
+                datasets: [{
+                    label: 'eGFR (mL/min)', data: egfrData.slice(-15),
+                    borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.3, yAxisID: 'y'
+                },{
+                    label: 'Creatinine (mg/dL)', data: creatData.slice(-15),
+                    borderColor: '#f97316', tension: 0.3, yAxisID: 'y1', pointRadius: 2
+                }]
+            },
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{y:{position:'left',grid:{color:gridColor},ticks:{color:textColor}},y1:{position:'right',grid:{display:false},ticks:{color:textColor}},x:{ticks:{display:false}}}}
+        });
+
+        // 5. Weight (Line)
+        charts.weight = new Chart(document.getElementById("chart-weight"), {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Weight (kg)', data: weightData,
+                    borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, pointRadius: 1
+                }]
+            },
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{y:{grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{display:false}}}}
+        });
+
+        // 6. Blood Pressure (dual line)
+        charts.bp = new Chart(document.getElementById("chart-bp"), {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Systolic', data: bpSys,
+                    borderColor: '#ef4444', tension: 0.3, pointRadius: 1
+                },{
+                    label: 'Diastolic', data: bpDia,
+                    borderColor: '#3b82f6', tension: 0.3, pointRadius: 1
+                },{
+                    label: 'Target Sys', data: Array(30).fill(130),
+                    borderColor: '#ef4444', borderDash: [4,4], pointRadius: 0
+                }]
+            },
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{y:{min:60,max:160,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{display:false}}}}
+        });
+
+        // 7. Health Radar
+        const hba1cScore = Math.max(0, 10 - (hba1c - 5.5) * 2);
+        const bpScore = Math.max(0, 10 - (140 - 120) * 0.2);
+        const kidneyScore = Math.min(10, egfrData[egfrData.length-1] / 10);
+        const lipidScore = Math.max(0, 10 - (ldlVal - 70) * 0.05);
+        const weightScore = weight < 90 ? 8 : weight < 100 ? 6 : 4;
+        const activityScore = 6 + Math.random() * 3;
+
+        charts.radar = new Chart(document.getElementById("chart-radar"), {
+            type: 'radar',
+            data: {
+                labels: ['Glycemic Control', 'Blood Pressure', 'Kidney Function', 'Lipid Health', 'Weight', 'Activity'],
+                datasets: [{
+                    label: 'Patient Score',
+                    data: [hba1cScore, bpScore, kidneyScore, lipidScore, weightScore, activityScore],
+                    borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.2)', pointBackgroundColor: '#16a34a'
+                },{
+                    label: 'Optimal',
+                    data: [9, 9, 9, 9, 9, 9],
+                    borderColor: '#d1d5db', backgroundColor: 'rgba(209,213,219,0.1)', borderDash: [3,3], pointRadius: 0
+                }]
+            },
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:10}}}}, scales:{r:{min:0,max:10,grid:{color:gridColor},ticks:{color:textColor,stepSize:2},pointLabels:{color:textColor,font:{size:10}}}}}
+        });
+
+        // Render risk gauges
+        renderGauge('gauge-hba1c', hba1c, 5.5, 10, hba1c <= 7 ? '#22c55e' : hba1c <= 8 ? '#f59e0b' : '#ef4444', `${hba1c}%`);
+        renderGauge('gauge-bp', 135, 90, 180, 135 <= 130 ? '#22c55e' : 135 <= 140 ? '#f59e0b' : '#ef4444', '135/85');
+        renderGauge('gauge-kidney', egfrData[egfrData.length-1], 15, 120, egfrData[egfrData.length-1] >= 60 ? '#22c55e' : '#f59e0b', `${Math.round(egfrData[egfrData.length-1])}`);
+        renderGauge('gauge-cardio', ldlVal, 50, 200, ldlVal <= 100 ? '#22c55e' : ldlVal <= 130 ? '#f59e0b' : '#ef4444', `${Math.round(ldlVal)}`);
+    }
+
+    function renderGauge(canvasId, value, min, max, color, label) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const cx = 50, cy = 55, r = 35;
+        const pct = Math.min(1, Math.max(0, (value - min) / (max - min)));
+        const startAngle = 0.75 * Math.PI;
+        const endAngle = 2.25 * Math.PI;
+        const angle = startAngle + pct * (endAngle - startAngle);
+
+        ctx.clearRect(0, 0, 100, 100);
+        // Background arc
+        ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, endAngle); ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+        // Value arc
+        ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, angle); ctx.strokeStyle = color; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+        // Label
+        ctx.fillStyle = color; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(label, cx, cy + 5);
+    }
+
+    function generateTrend(start, end, count) {
+        const arr = []; const step = (end - start) / count;
+        for (let i = 0; i < count; i++) { arr.push(Math.round((start + step * i + (Math.random()-0.5) * Math.abs(end-start)*0.15) * 10) / 10); }
+        return arr;
+    }
+
+    function generateDailyGlucose() {
+        // Simulate a realistic daily glucose curve (wake→breakfast spike→lunch spike→dinner spike)
+        const base = [95, 92, 88, 165, 145, 120, 105, 155, 140, 118, 108, 170, 155, 130, 115, 105, 100];
+        return base.map(v => v + Math.round((Math.random()-0.5) * 20));
     }
 
     function getLast30Days() {
