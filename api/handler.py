@@ -292,23 +292,48 @@ def _extract_text_textract(image_base64: str) -> dict:
 
 
 def _save_profile(email: str, profile_data: dict) -> dict:
-    """Save a user profile to DynamoDB."""
+    """Save/update a user profile in DynamoDB. Uses update to preserve existing fields."""
     dynamodb = boto3.resource("dynamodb", region_name=REGION)
     table = dynamodb.Table(PROFILE_TABLE)
     import time
-    # Remove empty string values (DynamoDB doesn't allow them)
-    # But keep booleans (even False) and numeric 0
-    item = {"email": email, "updated_at": int(time.time())}
+
+    # Build update expression dynamically — only update fields that are provided
+    update_parts = []
+    expr_values = {}
+    expr_names = {}
+    
     for key, value in profile_data.items():
         if key == "email":
             continue
-        if isinstance(value, bool):
-            item[key] = value
-        elif isinstance(value, (int, float)):
-            item[key] = value
-        elif value is not None and value != "":
-            item[key] = value
-    table.put_item(Item=item)
+        # Skip None and empty strings (but keep booleans and 0)
+        if value is None:
+            continue
+        if isinstance(value, str) and value == "":
+            continue
+            
+        # Handle reserved words and special chars in key names
+        safe_key = f"#k_{key.replace('-','_').replace('.','_')}"
+        val_key = f":v_{key.replace('-','_').replace('.','_')}"
+        expr_names[safe_key] = key
+        expr_values[val_key] = value
+        update_parts.append(f"{safe_key} = {val_key}")
+
+    # Always update timestamp
+    expr_names["#ts"] = "updated_at"
+    expr_values[":ts"] = int(time.time())
+    update_parts.append("#ts = :ts")
+
+    if not update_parts:
+        return {"status": "no_changes", "email": email}
+
+    update_expr = "SET " + ", ".join(update_parts)
+
+    table.update_item(
+        Key={"email": email},
+        UpdateExpression=update_expr,
+        ExpressionAttributeNames=expr_names,
+        ExpressionAttributeValues=expr_values,
+    )
     return {"status": "saved", "email": email}
 
 

@@ -296,6 +296,8 @@ async function runSingle(tool) {
             el.innerHTML = formatMd(data.response);
             document.getElementById("email-btn").disabled = false;
             if (ttsEnabled) speakSection(outId);
+            // Auto-save results to cloud
+            saveUserData();
         } else {
             const err = await res.json().catch(() => ({}));
             el.innerHTML = errBox(err.error || `Error ${res.status}`);
