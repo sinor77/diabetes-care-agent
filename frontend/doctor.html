@@ -190,9 +190,12 @@
                 const referrals = data.referrals || [];
                 document.getElementById("stat-referrals").textContent = referrals.length;
                 
-                // For each referral, load the patient profile
+                // Deduplicate patients by email (same patient may send multiple referrals)
+                const seen = new Set();
                 const patients = [];
                 for (const ref of referrals) {
+                    if (seen.has(ref.patientEmail)) continue;
+                    seen.add(ref.patientEmail);
                     try {
                         const pRes = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(ref.patientEmail)}`);
                         if (pRes.ok) {
@@ -206,9 +209,40 @@
                     } catch(e) {}
                 }
                 renderPatientList(patients);
+                generateAlerts(patients);
             }
         } catch(e) {
             document.getElementById("patient-list").innerHTML = `<p class="text-sm text-red-500">Failed to load patients.</p>`;
+        }
+    }
+
+    function generateAlerts(patients) {
+        const alertsEl = document.getElementById("alerts-list");
+        const alerts = [];
+        patients.forEach(p => {
+            const hba1c = parseFloat(p.hba1c) || 0;
+            const name = p.name || p.email;
+            if (hba1c > 9) alerts.push({level:'critical', msg:`🔴 ${name}: HbA1c at ${hba1c}% — Critical level, immediate intervention needed`, time:'Just now'});
+            else if (hba1c > 8) alerts.push({level:'warning', msg:`🟡 ${name}: HbA1c at ${hba1c}% — Above target, review medication`, time:'Today'});
+            
+            if (p.bp) {
+                const sys = parseInt(p.bp.split('/')[0]) || 0;
+                if (sys > 160) alerts.push({level:'critical', msg:`🔴 ${name}: BP ${p.bp} — Hypertensive crisis risk`, time:'Latest reading'});
+                else if (sys > 140) alerts.push({level:'warning', msg:`🟡 ${name}: BP ${p.bp} — Stage 2 hypertension`, time:'Latest reading'});
+            }
+        });
+
+        if (!alerts.length) {
+            alertsEl.innerHTML = `<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200"><p class="text-sm text-green-700">✅ No critical alerts. All patients within acceptable ranges.</p></div>`;
+        } else {
+            alertsEl.innerHTML = alerts.map(a => `
+                <div class="p-3 ${a.level==='critical'?'bg-red-50 dark:bg-red-900/20 border-red-200':'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200'} rounded-lg border">
+                    <div class="flex justify-between items-start">
+                        <p class="text-sm ${a.level==='critical'?'text-red-700 dark:text-red-300':'text-yellow-700 dark:text-yellow-300'}">${a.msg}</p>
+                        <span class="text-xs text-gray-400 whitespace-nowrap ml-2">${a.time}</span>
+                    </div>
+                </div>
+            `).join("");
         }
     }
 

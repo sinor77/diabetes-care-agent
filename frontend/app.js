@@ -858,12 +858,32 @@ function signIn(email, password) {
             localStorage.setItem("dc_cognito_email", email);
             localStorage.setItem("dc_role", role);
 
-            if (role === "expert") {
-                window.location.href = "doctor.html";
-            } else {
-                onSignedIn(email);
-                closeAuthModal();
-            }
+            // Check if this account's actual role matches selection
+            fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const actualRole = data.profile?._role || "patient";
+                    if (actualRole === "expert" && role === "patient") {
+                        showAuthError("This account is registered as a Doctor. Please select Doctor.");
+                        localStorage.removeItem("dc_cognito_email");
+                        localStorage.removeItem("dc_role");
+                        return;
+                    }
+                    if (role === "expert") {
+                        window.location.href = "doctor.html";
+                    } else {
+                        onSignedIn(email);
+                        closeAuthModal();
+                    }
+                })
+                .catch(() => {
+                    if (role === "expert") {
+                        window.location.href = "doctor.html";
+                    } else {
+                        onSignedIn(email);
+                        closeAuthModal();
+                    }
+                });
         },
         onFailure: (err) => { showAuthError(err.message); }
     });
