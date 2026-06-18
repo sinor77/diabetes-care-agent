@@ -64,20 +64,19 @@ function getProfile() {
 
 function saveProfile() {
     const p = getProfile();
-    // Use Cognito email if signed in
     const authEmail = localStorage.getItem("dc_cognito_email");
+    const role = localStorage.getItem("dc_role") || "patient";
     if (authEmail) p.email = authEmail;
 
     localStorage.setItem("dc_profile", JSON.stringify(p));
     showBadge(p.name);
     renderProfileOverview();
 
-    // Save to cloud DB linked to account
     if (p.email) {
         fetch(`${CONFIG.API_ENDPOINT}/profile`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(p),
+            body: JSON.stringify({ ...p, _role: role }),
         }).then(r => {
             if (r.ok) toast("☁️", "Profile saved to your account!");
             else toast("💾", "Saved locally (cloud sync failed).");
@@ -746,6 +745,7 @@ function switchAuthMode(mode) {
     const submit = document.getElementById("auth-submit");
     const switchBtn = document.getElementById("auth-switch");
     const confirmRow = document.getElementById("auth-confirm-row");
+    const roleRow = document.getElementById("auth-role-row");
     document.getElementById("auth-error").classList.add("hidden");
 
     if (mode === "signup") {
@@ -754,16 +754,19 @@ function switchAuthMode(mode) {
         switchBtn.textContent = "Already have an account? Sign In";
         switchBtn.setAttribute("onclick", "switchAuthMode('signin')");
         confirmRow.classList.add("hidden");
+        roleRow.classList.remove("hidden");
     } else if (mode === "confirm") {
         title.textContent = "Verify Email";
         submit.textContent = "Confirm";
         confirmRow.classList.remove("hidden");
+        roleRow.classList.add("hidden");
     } else {
         title.textContent = "Sign In";
         submit.textContent = "Sign In";
         switchBtn.textContent = "Need an account? Sign Up";
         switchBtn.setAttribute("onclick", "switchAuthMode('signup')");
         confirmRow.classList.add("hidden");
+        roleRow.classList.add("hidden");
     }
 }
 
@@ -786,11 +789,13 @@ function handleAuth() {
 
 function signUp(email, password) {
     const userPool = getUserPool();
+    const role = document.getElementById("auth-role")?.value || "patient";
     const attributeList = [
         new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email })
     ];
     userPool.signUp(email, password, attributeList, null, (err, result) => {
         if (err) { showAuthError(err.message); return; }
+        localStorage.setItem("dc_role", role);
         toast("✅", "Account created! Check email for verification code.");
         switchAuthMode("confirm");
     });
@@ -819,6 +824,10 @@ function signIn(email, password) {
         onSuccess: (session) => {
             cognitoUser = cogUser;
             localStorage.setItem("dc_cognito_email", email);
+            // Check if role is already set, otherwise default to patient
+            if (!localStorage.getItem("dc_role")) {
+                localStorage.setItem("dc_role", "patient");
+            }
             onSignedIn(email);
             closeAuthModal();
         },
@@ -832,12 +841,21 @@ function onSignedIn(email) {
     btn.setAttribute("onclick", "signOut()");
     btn.classList.remove("bg-brand-600");
     btn.classList.add("bg-gray-600");
+
+    const role = localStorage.getItem("dc_role") || "patient";
+    
+    // If doctor, redirect to doctor dashboard
+    if (role === "expert") {
+        window.location.href = "doctor.html";
+        return;
+    }
+
     toast("✅", `Signed in as ${email}`);
-    // Auto-fill email in profile and load cloud profile
     const emailInput = document.getElementById("input-email");
     if (emailInput) emailInput.value = email;
-    // Load profile from DynamoDB for this account
     loadCloudProfile(email);
+    loadDoctors();
+    loadDoctorReports();
 }
 
 function signOut() {
@@ -883,3 +901,92 @@ function showAuthError(msg) {
 
 // Check for existing Cognito session on load
 document.addEventListener("DOMContentLoaded", () => { setTimeout(checkExistingSession, 500); });
+
+
+// ========== DOCTOR-PATIENT INTERACTION ==========
+let selectedDoctorEmail = null;
+
+async function loadDoctors() {
+    const el = document.getElementById("doctor-list");
+    if (!el) return;
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/doctors`);
+        if (res.ok) {
+            const data = await res.json();
+            const doctors = data.doctors || [];
+            if (!doctors.length) { el.innerHTML = `<p class="text-sm text-gray-400 text-center">No doctors available yet.</p>`; return; }
+            el.innerHTML = doctors.map(d => `
+                <button onclick="selectDoctor('${d.email}')" class="w-full text-left px-3 py-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700 transition">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm">👨‍⚕️</div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">Dr. ${(d.name || d.email.split("@")[0])}</p>
+                            <p class="text-xs text-gray-500">${d.email}</p>
+                        </div>
+                    </div>
+                </button>
+            `).join("");
+        }
+    } catch(e) { el.innerHTML = `<p class="text-sm text-gray-400">Could not load doctors.</p>`; }
+}
+
+function selectDoctor(email) {
+    selectedDoctorEmail = email;
+    document.getElementById("selected-doctor").innerHTML = `<span class="text-brand-600 font-medium">👨‍⚕️ Dr. ${email.split("@")[0]}</span> selected`;
+}
+
+async function sendToDoctor() {
+    if (!selectedDoctorEmail) { toast("⚠️", "Select a doctor first."); return; }
+    const authEmail = localStorage.getItem("dc_cognito_email");
+    if (!authEmail) { toast("⚠️", "Sign in first."); return; }
+
+    const p = getProfile();
+    const message = document.getElementById("patient-message")?.value || "";
+    const insightData = results.insights || localStorage.getItem("dc_latest_insight") || "";
+
+    const referral = {
+        doctorEmail: selectedDoctorEmail,
+        patientEmail: authEmail,
+        patientName: p.name || authEmail,
+        profile: p,
+        insights: insightData.substring(0, 2000),
+        message: message,
+        timestamp: Date.now(),
+    };
+
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/referral`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(referral),
+        });
+        if (res.ok) {
+            toast("✅", `Health data sent to Dr. ${selectedDoctorEmail.split("@")[0]}!`);
+            document.getElementById("patient-message").value = "";
+        } else { toast("⚠️", "Failed to send. Try again."); }
+    } catch(e) { toast("⚠️", "Connection error."); }
+}
+
+async function loadDoctorReports() {
+    const el = document.getElementById("doctor-reports");
+    if (!el) return;
+    const authEmail = localStorage.getItem("dc_cognito_email");
+    if (!authEmail) return;
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/doctor-reports?email=${encodeURIComponent(authEmail)}`);
+        if (res.ok) {
+            const data = await res.json();
+            const reports = data.reports || [];
+            if (!reports.length) return;
+            el.innerHTML = reports.map(r => `
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-medium text-blue-700 dark:text-blue-300">From: Dr. ${(r.doctorEmail||"").split("@")[0]}</span>
+                        <span class="text-xs text-gray-400">${r.timestamp ? new Date(r.timestamp).toLocaleDateString() : ""}</span>
+                    </div>
+                    <p class="text-sm text-gray-700 dark:text-gray-200">${r.notes || "No notes"}</p>
+                </div>
+            `).join("");
+        }
+    } catch(e) {}
+}

@@ -42,7 +42,146 @@ def _error_response(status_code: int, message: str) -> dict:
 
 
 PROFILE_TABLE = "diabetes-care-profiles"
+HEALTH_LOGS_TABLE = "diabetes-care-health-logs"
+REFERRALS_TABLE = "diabetes-care-referrals"
 SNS_TOPIC_ARN = "arn:aws:sns:ap-southeast-1:823164611866:diabetes-care-reminders"
+
+
+def _list_patients() -> dict:
+    """List all patient profiles."""
+    from decimal import Decimal
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(PROFILE_TABLE)
+    response = table.scan()
+    patients = []
+    for item in response.get("Items", []):
+        # Only include patients (not doctors)
+        role = item.get("_role", "patient")
+        if role == "expert":
+            continue
+        clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items() if not k.startswith("_")}
+        patients.append(clean)
+    return {"patients": patients}
+
+
+def _list_doctors() -> dict:
+    """List all doctor/expert profiles."""
+    from decimal import Decimal
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(PROFILE_TABLE)
+    response = table.scan()
+    doctors = []
+    for item in response.get("Items", []):
+        if item.get("_role") == "expert":
+            clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items() if not k.startswith("_")}
+            doctors.append(clean)
+    return {"doctors": doctors}
+
+
+def _save_referral(data: dict) -> dict:
+    """Save a patient referral to a doctor."""
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(REFERRALS_TABLE)
+    import time
+    item = {
+        "doctorEmail": data.get("doctorEmail", ""),
+        "timestamp": int(data.get("timestamp", time.time() * 1000)),
+        "patientEmail": data.get("patientEmail", ""),
+        "patientName": data.get("patientName", ""),
+        "message": data.get("message", ""),
+        "insights": data.get("insights", ""),
+        "type": "referral",
+    }
+    # Remove empty strings
+    item = {k: v for k, v in item.items() if v is not None and v != ""}
+    table.put_item(Item=item)
+    return {"status": "sent"}
+
+
+def _get_referrals(doctor_email: str) -> dict:
+    """Get referrals for a doctor."""
+    from decimal import Decimal
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(REFERRALS_TABLE)
+    response = table.query(
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("doctorEmail").eq(doctor_email)
+    )
+    referrals = []
+    for item in response.get("Items", []):
+        clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items()}
+        if clean.get("type") == "referral":
+            referrals.append(clean)
+    return {"referrals": referrals}
+
+
+def _save_doctor_report(data: dict) -> dict:
+    """Doctor sends a report to a patient."""
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(REFERRALS_TABLE)
+    import time
+    item = {
+        "doctorEmail": data.get("patientEmail", ""),  # Keyed by patient for easy lookup
+        "timestamp": int(data.get("timestamp", time.time() * 1000)),
+        "notes": data.get("notes", ""),
+        "fromDoctor": data.get("doctorEmail", ""),
+        "type": "doctor_report",
+    }
+    item = {k: v for k, v in item.items() if v is not None and v != ""}
+    table.put_item(Item=item)
+    return {"status": "sent"}
+
+
+def _get_doctor_reports(patient_email: str) -> dict:
+    """Get doctor reports sent to a patient."""
+    from decimal import Decimal
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(REFERRALS_TABLE)
+    response = table.query(
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("doctorEmail").eq(patient_email)
+    )
+    reports = []
+    for item in response.get("Items", []):
+        clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items()}
+        if clean.get("type") == "doctor_report":
+            reports.append(clean)
+    return {"reports": reports}
+
+
+def _save_health_log(data: dict) -> dict:
+    """Save a health metric log entry."""
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(HEALTH_LOGS_TABLE)
+    import time
+    item = {
+        "email": data.get("email", ""),
+        "timestamp": int(data.get("timestamp", time.time())),
+    }
+    # Add any numeric health metrics
+    for key in ["hba1c", "fasting_glucose", "glucose", "ldl", "hdl", "triglycerides", "total_cholesterol", "creatinine", "egfr", "weight", "systolic", "diastolic"]:
+        if key in data and data[key] is not None:
+            try:
+                item[key] = float(data[key])
+            except (TypeError, ValueError):
+                pass
+    table.put_item(Item=item)
+    return {"status": "logged"}
+
+
+def _get_health_logs(email: str) -> dict:
+    """Get health logs for a patient (last 30 days)."""
+    from decimal import Decimal
+    import time
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table = dynamodb.Table(HEALTH_LOGS_TABLE)
+    thirty_days_ago = int(time.time()) - (30 * 86400)
+    response = table.query(
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("email").eq(email) & boto3.dynamodb.conditions.Key("timestamp").gte(thirty_days_ago)
+    )
+    logs = []
+    for item in response.get("Items", []):
+        clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items()}
+        logs.append(clean)
+    return {"logs": logs}
 
 
 def _synthesize_speech(text: str) -> dict:
@@ -448,6 +587,70 @@ def handler(event, context):
             "headers": _cors_headers(),
             "body": json.dumps(result),
         }
+
+    # GET /patients - List all patient profiles (for doctor dashboard)
+    if http_method == "GET" and "/patients" in path:
+        result = _list_patients()
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # GET /doctors - List all expert/doctor profiles
+    if http_method == "GET" and "/doctors" in path:
+        result = _list_doctors()
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # POST /referral - Patient sends data to doctor
+    if http_method == "POST" and "/referral" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        result = _save_referral(body)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # GET /referrals - Doctor gets their referrals
+    if http_method == "GET" and "/referrals" in path:
+        params = event.get("queryStringParameters") or {}
+        email = params.get("email", "").strip()
+        if not email:
+            return _error_response(400, "Email required")
+        result = _get_referrals(email)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # POST /doctor-report - Doctor sends report to patient
+    if http_method == "POST" and "/doctor-report" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        result = _save_doctor_report(body)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # GET /doctor-reports - Patient gets reports from doctor
+    if http_method == "GET" and "/doctor-reports" in path:
+        params = event.get("queryStringParameters") or {}
+        email = params.get("email", "").strip()
+        if not email:
+            return _error_response(400, "Email required")
+        result = _get_doctor_reports(email)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # GET /health-logs - Get health logs for a patient (for charts)
+    if http_method == "GET" and "/health-logs" in path:
+        params = event.get("queryStringParameters") or {}
+        email = params.get("email", "").strip()
+        if not email:
+            return _error_response(400, "Email required")
+        result = _get_health_logs(email)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
+
+    # POST /health-logs - Log health metrics
+    if http_method == "POST" and "/health-logs" in path:
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            return _error_response(400, "Invalid JSON body")
+        result = _save_health_log(body)
+        return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(result)}
 
     # POST /polly - Convert text to speech using Amazon Polly
     if http_method == "POST" and "/polly" in path:

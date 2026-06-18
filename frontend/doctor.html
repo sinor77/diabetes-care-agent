@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard - Diabetes Control AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6/dist/amazon-cognito-identity.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#f0fdf4',100:'#dcfce7',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534'}}}}}</script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background-color:rgb(172,255,203)"><span class="text-lg">🩺</span></div>
+                <span class="font-bold text-gray-900 dark:text-white text-lg">Doctor Dashboard</span>
+                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Expert Mode</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleTheme()" class="px-3 py-1.5 rounded-full text-xs border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"><span id="theme-icon">🌙</span></button>
+                <span id="doctor-name" class="text-sm text-gray-600 dark:text-gray-300"></span>
+                <button onclick="signOut()" class="px-3 py-1.5 rounded-full text-xs bg-gray-600 text-white hover:bg-gray-700">Sign Out</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Total Patients</p>
+                <p id="stat-patients" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Pending Referrals</p>
+                <p id="stat-referrals" class="text-2xl font-bold text-orange-600">0</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400">High Risk Patients</p>
+                <p id="stat-highrisk" class="text-2xl font-bold text-red-600">0</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Avg HbA1c</p>
+                <p id="stat-avghba1c" class="text-2xl font-bold text-brand-600">--%</p>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+            <!-- Patient List -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="font-bold text-gray-900 dark:text-white mb-4">👥 My Patients</h2>
+                <div id="patient-list" class="space-y-2 max-h-[500px] overflow-y-auto">
+                    <p class="text-sm text-gray-400 text-center py-8">Loading patients...</p>
+                </div>
+            </div>
+
+            <!-- Patient Detail + Charts -->
+            <div class="md:col-span-2 space-y-4">
+                <!-- Patient Info -->
+                <div id="patient-detail" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">Select a patient to view their health data</p>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📊 Glycemic Control</h3>
+                        <canvas id="chart-glycemic" height="200"></canvas>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🫀 Lipid Panel</h3>
+                        <canvas id="chart-lipids" height="200"></canvas>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🫁 Kidney Function</h3>
+                        <canvas id="chart-kidney" height="200"></canvas>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📈 Glucose Readings</h3>
+                        <canvas id="chart-glucose" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Doctor Actions -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">📝 Send Report to Patient</h3>
+                    <textarea id="doctor-notes" rows="3" class="inp resize-none" placeholder="Write your clinical notes, recommendations, or medication changes..."></textarea>
+                    <button onclick="sendDoctorReport()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition">Send Report to Patient</button>
+                </div>
+
+                <!-- Alerts -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">🚨 Threshold Alerts (EventBridge)</h3>
+                    <div id="alerts-list" class="space-y-2">
+                        <p class="text-sm text-gray-400">No alerts triggered yet. Alerts fire when HbA1c &gt; 9%, Glucose &gt; 300, or LDL &gt; 190.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="config.js?v=4"></script>
+    <script>
+    let selectedPatient = null;
+    let charts = {};
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadTheme();
+        checkDoctorAuth();
+    });
+
+    function checkDoctorAuth() {
+        const email = localStorage.getItem("dc_cognito_email");
+        const role = localStorage.getItem("dc_role");
+        if (!email || role !== "expert") {
+            alert("Access denied. Sign in as a doctor from the main app.");
+            window.location.href = "index.html";
+            return;
+        }
+        document.getElementById("doctor-name").textContent = `Dr. ${email.split("@")[0]}`;
+        loadPatients();
+    }
+
+    async function loadPatients() {
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/patients`);
+            if (res.ok) {
+                const data = await res.json();
+                renderPatientList(data.patients || []);
+            }
+        } catch(e) {
+            document.getElementById("patient-list").innerHTML = `<p class="text-sm text-red-500">Failed to load patients.</p>`;
+        }
+    }
+
+    function renderPatientList(patients) {
+        const el = document.getElementById("patient-list");
+        if (!patients.length) { el.innerHTML = `<p class="text-sm text-gray-400 text-center">No patients assigned yet.</p>`; return; }
+        
+        let highRisk = 0;
+        let totalHba1c = 0; let hba1cCount = 0;
+        
+        el.innerHTML = patients.map(p => {
+            const hba1c = parseFloat(p.hba1c) || 0;
+            if (hba1c > 8) highRisk++;
+            if (hba1c > 0) { totalHba1c += hba1c; hba1cCount++; }
+            const riskColor = hba1c > 8 ? "red" : hba1c > 7 ? "yellow" : "green";
+            return `<button onclick="selectPatient('${p.email}')" class="w-full text-left px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">${p.name || p.email}</span>
+                    <span class="w-2 h-2 rounded-full bg-${riskColor}-500"></span>
+                </div>
+                <span class="text-xs text-gray-500">HbA1c: ${p.hba1c || "?"}% | ${p.dtype || "Type 2"}</span>
+            </button>`;
+        }).join("");
+        
+        document.getElementById("stat-patients").textContent = patients.length;
+        document.getElementById("stat-highrisk").textContent = highRisk;
+        document.getElementById("stat-avghba1c").textContent = hba1cCount ? (totalHba1c/hba1cCount).toFixed(1)+"%" : "--%";
+    }
+
+    async function selectPatient(email) {
+        selectedPatient = email;
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.profile) renderPatientDetail(data.profile);
+            }
+            // Load health logs for charts
+            const logsRes = await fetch(`${CONFIG.API_ENDPOINT}/health-logs?email=${encodeURIComponent(email)}`);
+            if (logsRes.ok) {
+                const logsData = await logsRes.json();
+                renderCharts(logsData.logs || []);
+            }
+        } catch(e) {}
+    }
+
+    function renderPatientDetail(p) {
+        document.getElementById("patient-detail").innerHTML = `
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">${p.name || "Patient"}</h3>
+                    <p class="text-sm text-gray-500">${p.email} | ${p.dtype || "Type 2"} | ${p.age || "?"}yo</p>
+                </div>
+                <span class="text-xs bg-${parseFloat(p.hba1c)>8?'red':parseFloat(p.hba1c)>7?'yellow':'green'}-100 text-${parseFloat(p.hba1c)>8?'red':parseFloat(p.hba1c)>7?'yellow':'green'}-800 px-2 py-1 rounded-full">HbA1c: ${p.hba1c||"?"}%</span>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mt-4">
+                <div><span class="text-xs text-gray-500">Weight</span><p class="font-semibold text-gray-900 dark:text-white">${p.weight||"?"}kg</p></div>
+                <div><span class="text-xs text-gray-500">BP</span><p class="font-semibold text-gray-900 dark:text-white">${p.bp||"?"}</p></div>
+                <div><span class="text-xs text-gray-500">Medications</span><p class="font-semibold text-sm text-gray-900 dark:text-white">${p.meds||"?"}</p></div>
+            </div>
+            <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span class="text-xs text-gray-500">Challenge:</span>
+                <p class="text-sm text-gray-700 dark:text-gray-200">${p.challenge||"Not specified"}</p>
+            </div>`;
+    }
+
+    function renderCharts(logs) {
+        // Generate sample data if no real logs
+        const dates = logs.length ? logs.map(l => new Date(l.timestamp*1000).toLocaleDateString()) : getLast30Days();
+        const hba1c = logs.length ? logs.map(l => l.hba1c || null) : generateSample(6.5, 8.5, 30);
+        const fasting = logs.length ? logs.map(l => l.fasting_glucose || null) : generateSample(90, 160, 30);
+        const ldl = logs.length ? logs.map(l => l.ldl || null) : generateSample(90, 150, 30);
+        const hdl = logs.length ? logs.map(l => l.hdl || null) : generateSample(35, 55, 30);
+        const triglycerides = logs.length ? logs.map(l => l.triglycerides || null) : generateSample(120, 220, 30);
+        const egfr = logs.length ? logs.map(l => l.egfr || null) : generateSample(60, 95, 30);
+        const creatinine = logs.length ? logs.map(l => l.creatinine || null) : generateSample(0.8, 1.4, 30);
+        const glucose = logs.length ? logs.map(l => l.glucose || null) : generateSample(70, 200, 30);
+
+        // Destroy existing charts
+        Object.values(charts).forEach(c => c.destroy());
+
+        const opts = {responsive:true,plugins:{legend:{labels:{color:'#6b7280',font:{size:10}}}},scales:{x:{ticks:{display:false}},y:{ticks:{color:'#6b7280',font:{size:10}}}}};
+
+        charts.glycemic = new Chart(document.getElementById("chart-glycemic"),{type:'line',data:{labels:dates,datasets:[{label:'HbA1c %',data:hba1c,borderColor:'#ef4444',tension:0.3,pointRadius:2},{label:'Fasting mg/dL',data:fasting.map(v=>v/20),borderColor:'#3b82f6',tension:0.3,pointRadius:2}]},options:opts});
+        charts.lipids = new Chart(document.getElementById("chart-lipids"),{type:'line',data:{labels:dates,datasets:[{label:'LDL',data:ldl,borderColor:'#ef4444',tension:0.3,pointRadius:2},{label:'HDL',data:hdl,borderColor:'#22c55e',tension:0.3,pointRadius:2},{label:'Triglycerides',data:triglycerides.map(v=>v/2),borderColor:'#f59e0b',tension:0.3,pointRadius:2}]},options:opts});
+        charts.kidney = new Chart(document.getElementById("chart-kidney"),{type:'line',data:{labels:dates,datasets:[{label:'eGFR',data:egfr,borderColor:'#8b5cf6',tension:0.3,pointRadius:2},{label:'Creatinine x50',data:creatinine.map(v=>v*50),borderColor:'#f97316',tension:0.3,pointRadius:2}]},options:opts});
+        charts.glucose = new Chart(document.getElementById("chart-glucose"),{type:'line',data:{labels:dates,datasets:[{label:'Glucose mg/dL',data:glucose,borderColor:'#06b6d4',backgroundColor:'rgba(6,182,212,0.1)',fill:true,tension:0.3,pointRadius:2}]},options:{...opts,plugins:{...opts.plugins,annotation:{annotations:{target:{type:'line',yMin:180,yMax:180,borderColor:'red',borderDash:[5,5],label:{content:'Target <180',display:true}}}}}}});
+    }
+
+    function getLast30Days() {
+        const d = []; for(let i=29;i>=0;i--){const dt=new Date();dt.setDate(dt.getDate()-i);d.push(dt.toLocaleDateString());}return d;
+    }
+    function generateSample(min,max,count) {
+        const arr=[]; let val=min+(max-min)*Math.random();
+        for(let i=0;i<count;i++){val+=((Math.random()-0.5)*((max-min)*0.15));val=Math.max(min,Math.min(max,val));arr.push(Math.round(val*10)/10);}return arr;
+    }
+
+    async function sendDoctorReport() {
+        if (!selectedPatient) { alert("Select a patient first."); return; }
+        const notes = document.getElementById("doctor-notes").value.trim();
+        if (!notes) { alert("Write your notes first."); return; }
+        try {
+            await fetch(`${CONFIG.API_ENDPOINT}/doctor-report`, {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({patientEmail: selectedPatient, doctorEmail: localStorage.getItem("dc_cognito_email"), notes, timestamp: Date.now()})
+            });
+            document.getElementById("doctor-notes").value = "";
+            alert("Report sent to patient!");
+        } catch(e) { alert("Failed to send."); }
+    }
+
+    function signOut() {
+        localStorage.removeItem("dc_cognito_email");
+        localStorage.removeItem("dc_role");
+        window.location.href = "index.html";
+    }
+
+    function toggleTheme() {
+        const isDark = document.documentElement.classList.toggle("dark");
+        localStorage.setItem("dc_theme", isDark?"dark":"light");
+        document.getElementById("theme-icon").textContent = isDark?"☀️":"🌙";
+    }
+    function loadTheme() {
+        if(localStorage.getItem("dc_theme")==="dark"){document.documentElement.classList.add("dark");document.getElementById("theme-icon").textContent="☀️";}
+    }
+    </script>
+</body>
+</html>

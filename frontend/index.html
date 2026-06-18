@@ -59,6 +59,7 @@
                 <button class="tab-btn" data-tab="risk">⚡ Risk Predictor</button>
                 <button class="tab-btn" data-tab="plan">📋 Plan Generator</button>
                 <button class="tab-btn" data-tab="coach">🤖 AI Coach</button>
+                <button class="tab-btn" data-tab="doctor">👨‍⚕️ See a Doctor</button>
                 <button class="tab-btn" data-tab="insights">💡 Insights</button>
             </div>
         </div>
@@ -297,6 +298,33 @@
             </div>
         </section>
 
+        <!-- TAB: See a Doctor -->
+        <section id="tab-doctor" class="tab-content hidden">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h2 class="font-bold text-gray-900 dark:text-white mb-2">👨‍⚕️ Available Doctors</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Select a doctor to send your health data for review.</p>
+                    <div id="doctor-list" class="space-y-2">
+                        <p class="text-sm text-gray-400 text-center py-4">Loading doctors...</p>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h2 class="font-bold text-gray-900 dark:text-white mb-2">📤 Send to Doctor</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Share your profile, insights, and analysis history with the selected doctor.</p>
+                    <div id="selected-doctor" class="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300">No doctor selected</div>
+                    <textarea id="patient-message" rows="3" class="inp resize-none mb-3" placeholder="Optional message to the doctor (symptoms, questions, concerns)..."></textarea>
+                    <button onclick="sendToDoctor()" class="w-full py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition">📤 Send My Health Data to Doctor</button>
+                    
+                    <div class="mt-6">
+                        <h3 class="font-semibold text-gray-900 dark:text-white mb-2">📩 Doctor Reports for You</h3>
+                        <div id="doctor-reports" class="space-y-2">
+                            <p class="text-sm text-gray-400 text-center py-4">No reports received yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- TAB: Insights -->
         <section id="tab-insights" class="tab-content hidden">
             <div class="bg-white rounded-2xl border border-gray-200 p-6">
@@ -332,6 +360,13 @@
             <div class="space-y-3">
                 <input id="auth-email" type="email" class="inp" placeholder="Email">
                 <input id="auth-password" type="password" class="inp" placeholder="Password (min 8 chars, 1 number)">
+                <div id="auth-role-row" class="hidden">
+                    <label class="lbl">I am a:</label>
+                    <select id="auth-role" class="inp">
+                        <option value="patient">Patient</option>
+                        <option value="expert">Doctor / Expert</option>
+                    </select>
+                </div>
                 <div id="auth-confirm-row" class="hidden">
                     <input id="auth-code" type="text" class="inp" placeholder="Verification code (check email)">
                 </div>

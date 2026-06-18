@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["dynamodb:*"],
+      "Resource": [
+        "arn:aws:dynamodb:ap-southeast-1:823164611866:table/diabetes-care-profiles",
+        "arn:aws:dynamodb:ap-southeast-1:823164611866:table/diabetes-care-health-logs",
+        "arn:aws:dynamodb:ap-southeast-1:823164611866:table/diabetes-care-referrals"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["events:PutEvents"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["cognito-idp:AdminAddUserToGroup", "cognito-idp:AdminListGroupsForUser", "cognito-idp:ListUsersInGroup"],
+      "Resource": "*"
+    }
+  ]
+}
