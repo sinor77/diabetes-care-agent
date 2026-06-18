@@ -1058,7 +1058,7 @@ async function loadDoctorReports() {
             el.innerHTML = reports.map(r => `
                 <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-medium text-blue-700 dark:text-blue-300">From: Dr. ${(r.doctorEmail||"").split("@")[0]}</span>
+                        <span class="text-xs font-medium text-blue-700 dark:text-blue-300">From: Dr. ${(r.fromDoctor||r.doctorEmail||"").split("@")[0]}</span>
                         <span class="text-xs text-gray-400">${r.timestamp ? new Date(r.timestamp).toLocaleDateString() : ""}</span>
                     </div>
                     <p class="text-sm text-gray-700 dark:text-gray-200">${r.notes || "No notes"}</p>

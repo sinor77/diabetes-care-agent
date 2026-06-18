@@ -48,7 +48,7 @@
         </div>
 
         <div class="grid md:grid-cols-3 gap-6">
-            <!-- Patient List -->
+            <!-- Patient List (always visible) -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                 <h2 class="font-bold text-gray-900 dark:text-white mb-4">👥 My Patients</h2>
                 <div id="patient-list" class="space-y-2 max-h-[500px] overflow-y-auto">
@@ -56,8 +56,19 @@
                 </div>
             </div>
 
-            <!-- Patient Detail + Charts -->
-            <div class="md:col-span-2 space-y-4">
+            <!-- Right panel with tabs -->
+            <div class="md:col-span-2">
+                <!-- Doctor Tabs -->
+                <div class="flex gap-1 mb-4 overflow-x-auto">
+                    <button class="doc-tab active" onclick="switchDocTab('overview')">📋 Overview</button>
+                    <button class="doc-tab" onclick="switchDocTab('charts')">📊 Charts</button>
+                    <button class="doc-tab" onclick="switchDocTab('labs')">🧪 Lab & Records</button>
+                    <button class="doc-tab" onclick="switchDocTab('alerts')">🚨 Alerts</button>
+                    <button class="doc-tab" onclick="switchDocTab('actions')">📝 Actions</button>
+                </div>
+
+                <!-- Tab: Overview -->
+                <div id="doc-tab-overview" class="doc-tab-content space-y-4">
                 <!-- Patient Info -->
                 <div id="patient-detail" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                     <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">Select a patient to view their health data</p>
@@ -68,6 +79,10 @@
                     <h3 class="font-semibold text-gray-900 dark:text-white mb-3">🧪 Patient's Lab Image</h3>
                     <img id="lab-image-display" class="max-w-full rounded-lg border border-gray-200" src="" alt="Lab Result">
                 </div>
+                </div>
+
+                <!-- Tab: Charts -->
+                <div id="doc-tab-charts" class="doc-tab-content hidden space-y-4">
 
                 <!-- Risk Score Gauge -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
@@ -116,13 +131,31 @@
                     </div>
                 </div>
 
-                <!-- Radar Chart: Overall Health -->
+                <!-- Radar Chart -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
                     <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🕸️ Overall Health Radar</h3>
-                    <div class="max-w-md mx-auto">
-                        <canvas id="chart-radar" height="250"></canvas>
+                    <div class="max-w-md mx-auto"><canvas id="chart-radar" height="250"></canvas></div>
+                </div>
+                </div>
+
+                <!-- Tab: Labs & Records -->
+                <div id="doc-tab-labs" class="doc-tab-content hidden space-y-4">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">🧪 Patient Lab Image</h3>
+                    <div id="lab-image-section-2">
+                        <p class="text-sm text-gray-400">Select a patient to view their uploaded lab image.</p>
                     </div>
                 </div>
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">📋 Patient Analysis History</h3>
+                    <div id="patient-analyses" class="space-y-3">
+                        <p class="text-sm text-gray-400">Select a patient to see their AI analyses.</p>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Tab: Alerts -->
+                <div id="doc-tab-alerts" class="doc-tab-content hidden space-y-4">
 
                 <!-- Doctor Actions -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
@@ -131,21 +164,47 @@
                     <button onclick="sendDoctorReport()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition">Send Report to Patient</button>
                 </div>
 
-                <!-- Alerts -->
+                <!-- Alerts content -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                     <h3 class="font-semibold text-gray-900 dark:text-white mb-3">🚨 Threshold Alerts (EventBridge)</h3>
                     <div id="alerts-list" class="space-y-2">
                         <p class="text-sm text-gray-400">No alerts triggered yet. Alerts fire when HbA1c &gt; 9%, Glucose &gt; 300, or LDL &gt; 190.</p>
                     </div>
                 </div>
+                </div>
+
+                <!-- Tab: Actions -->
+                <div id="doc-tab-actions" class="doc-tab-content hidden space-y-4">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">📝 Send Report to Patient</h3>
+                    <textarea id="doctor-notes" rows="4" class="inp resize-none" placeholder="Write your clinical notes, recommendations, or medication changes..."></textarea>
+                    <button onclick="sendDoctorReport()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition">Send Report to Patient</button>
+                </div>
+                </div>
+
             </div>
         </div>
     </main>
 
-    <script src="config.js?v=4"></script>
+    <script src="config.js?v=5"></script>
+    <style>
+        .doc-tab{padding:0.5rem 1rem;font-size:0.8rem;font-weight:500;border-radius:0.5rem;color:#6b7280;white-space:nowrap;border:1px solid transparent;cursor:pointer}
+        .doc-tab:hover{background:#f3f4f6}
+        .doc-tab.active{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;font-weight:600}
+        .dark .doc-tab{color:#9ca3af}
+        .dark .doc-tab:hover{background:#374151}
+        .dark .doc-tab.active{background:#1e3a5f;color:#93c5fd;border-color:#1e40af}
+    </style>
     <script>
     let selectedPatient = null;
     let charts = {};
+
+    function switchDocTab(tab) {
+        document.querySelectorAll('.doc-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.doc-tab-content').forEach(c => { c.classList.add('hidden'); });
+        document.getElementById('doc-tab-' + tab).classList.remove('hidden');
+        event.target.classList.add('active');
+    }
 
     document.addEventListener("DOMContentLoaded", () => {
         loadTheme();
