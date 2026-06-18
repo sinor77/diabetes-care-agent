@@ -789,7 +789,8 @@ function handleAuth() {
 
 function signUp(email, password) {
     const userPool = getUserPool();
-    const role = document.getElementById("auth-role")?.value || "patient";
+    const roleRadio = document.querySelector('input[name="auth-role-radio"]:checked');
+    const role = roleRadio ? roleRadio.value : "patient";
     const attributeList = [
         new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email })
     ];
@@ -820,16 +821,22 @@ function signIn(email, password) {
     const userData = { Username: email, Pool: userPool };
     const cogUser = new AmazonCognitoIdentity.CognitoUser(userData);
 
+    // Get selected role from radio buttons
+    const roleRadio = document.querySelector('input[name="auth-role-radio"]:checked');
+    const role = roleRadio ? roleRadio.value : "patient";
+
     cogUser.authenticateUser(authDetails, {
         onSuccess: (session) => {
             cognitoUser = cogUser;
             localStorage.setItem("dc_cognito_email", email);
-            // Check if role is already set, otherwise default to patient
-            if (!localStorage.getItem("dc_role")) {
-                localStorage.setItem("dc_role", "patient");
+            localStorage.setItem("dc_role", role);
+
+            if (role === "expert") {
+                window.location.href = "doctor.html";
+            } else {
+                onSignedIn(email);
+                closeAuthModal();
             }
-            onSignedIn(email);
-            closeAuthModal();
         },
         onFailure: (err) => { showAuthError(err.message); }
     });

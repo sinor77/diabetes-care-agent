@@ -360,6 +360,16 @@
             <div class="space-y-3">
                 <input id="auth-email" type="email" class="inp" placeholder="Email">
                 <input id="auth-password" type="password" class="inp" placeholder="Password (min 8 chars, 1 number)">
+                <div class="flex gap-4 py-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="auth-role-radio" value="patient" checked class="accent-brand-600">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">👤 Patient</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="auth-role-radio" value="expert" class="accent-blue-600">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">👨‍⚕️ Doctor</span>
+                    </label>
+                </div>
                 <div id="auth-role-row" class="hidden">
                     <label class="lbl">I am a:</label>
                     <select id="auth-role" class="inp">
@@ -375,7 +385,6 @@
             <button id="auth-submit" onclick="handleAuth()" class="w-full mt-4 py-2.5 bg-brand-600 text-white font-medium rounded-xl hover:bg-brand-700 transition">Sign In</button>
             <div class="flex justify-between mt-3">
                 <button onclick="switchAuthMode('signup')" class="text-xs text-brand-600 hover:underline" id="auth-switch">Need an account? Sign Up</button>
-                <button onclick="signInAsDoctor()" class="text-xs text-blue-600 hover:underline">Sign in as Doctor →</button>
                 <button onclick="closeAuthModal()" class="text-xs text-gray-500 hover:underline">Cancel</button>
             </div>
         </div>
