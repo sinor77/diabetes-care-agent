@@ -297,9 +297,16 @@ def _save_profile(email: str, profile_data: dict) -> dict:
     table = dynamodb.Table(PROFILE_TABLE)
     import time
     # Remove empty string values (DynamoDB doesn't allow them)
+    # But keep booleans (even False) and numeric 0
     item = {"email": email, "updated_at": int(time.time())}
     for key, value in profile_data.items():
-        if value is not None and value != "":
+        if key == "email":
+            continue
+        if isinstance(value, bool):
+            item[key] = value
+        elif isinstance(value, (int, float)):
+            item[key] = value
+        elif value is not None and value != "":
             item[key] = value
     table.put_item(Item=item)
     return {"status": "saved", "email": email}

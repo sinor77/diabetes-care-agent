@@ -816,8 +816,19 @@ function confirmSignUp(email) {
     const cogUser = new AmazonCognitoIdentity.CognitoUser(userData);
     cogUser.confirmRegistration(code, true, (err, result) => {
         if (err) { showAuthError(err.message); return; }
-        toast("✅", "Email verified! You can now sign in.");
-        switchAuthMode("signin");
+        // Save role to DynamoDB now that account is confirmed
+        const role = localStorage.getItem("dc_role") || "patient";
+        fetch(`${CONFIG.API_ENDPOINT}/profile`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, _role: role, name: email.split("@")[0], verified: false }),
+        }).then(() => {
+            toast("✅", "Email verified! You can now sign in.");
+            switchAuthMode("signin");
+        }).catch(() => {
+            toast("✅", "Email verified! You can now sign in.");
+            switchAuthMode("signin");
+        });
     });
 }
 

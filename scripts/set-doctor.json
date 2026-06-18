@@ -1,0 +1,6 @@
+{
+  "email": {"S": "sinorhsl@gmail.com"},
+  "_role": {"S": "expert"},
+  "verified": {"BOOL": true},
+  "name": {"S": "Dr. Jeff"}
+}
