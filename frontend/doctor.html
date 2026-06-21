@@ -676,12 +676,21 @@
 
         // Get patient profile for context
         let patientData = "";
+        let labData = "";
+        let profileHba1c = "";
         try {
             const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(selectedPatient)}`);
             if (res.ok) {
                 const data = await res.json();
                 const p = data.profile || {};
-                patientData = `Patient: ${p.name||selectedPatient}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years. HbA1c: ${p.hba1c||"?"}%, BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg, Meds: ${p.meds||"unknown"}, Challenge: ${p.challenge||"?"}`;
+                profileHba1c = p.hba1c || "";
+                patientData = `Patient: ${p.name||selectedPatient}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years. Profile HbA1c: ${p.hba1c||"?"}%, BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg, Meds: ${p.meds||"unknown"}, Challenge: ${p.challenge||"?"}`;
+                if (p._userData) {
+                    try {
+                        const ud = JSON.parse(p._userData);
+                        if (ud.results && ud.results.lab) labData = ud.results.lab.substring(0, 800);
+                    } catch(e) {}
+                }
             }
         } catch(e) {}
 
@@ -689,14 +698,23 @@
 
 ${patientData}
 
-Based on the patient's health metrics over the past 30 days, provide a clinical analysis:
+${labData ? `LATEST LAB INTERPRETATION (from AI Lab Analyzer):\n${labData}` : ""}
+
+IMPORTANT: Compare the patient's PROFILE values (self-reported) against their LAB RESULTS (clinical). If there are discrepancies (e.g., profile says HbA1c 7.2% but lab shows 8.1%), flag these clearly.
+
+Provide a clinical analysis:
 
 ## 📊 Trend Analysis
 - HbA1c trajectory (improving/stable/worsening)
 - Glucose variability pattern
 - Cardiovascular risk trend
 
-## ⚠️ Anomalies Detected
+## ⚠️ Data Discrepancies
+- Compare profile values vs lab values — highlight any mismatches
+- Explain which source is more reliable (labs > self-report)
+- Suggest the patient update their profile with latest lab values
+
+## 🔍 Anomalies Detected
 - Any sudden changes or concerning patterns
 - Metrics that deviated from expected range
 
