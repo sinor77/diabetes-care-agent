@@ -156,6 +156,7 @@ def _get_doctor_reports(patient_email: str) -> dict:
 
 def _save_health_log(data: dict) -> dict:
     """Save a health metric log entry."""
+    from decimal import Decimal
     dynamodb = boto3.resource("dynamodb", region_name=REGION)
     table = dynamodb.Table(HEALTH_LOGS_TABLE)
     import time
@@ -163,12 +164,12 @@ def _save_health_log(data: dict) -> dict:
         "email": data.get("email", ""),
         "timestamp": int(data.get("timestamp", time.time())),
     }
-    # Add any numeric health metrics
+    # Add any numeric health metrics (use Decimal for DynamoDB)
     for key in ["hba1c", "fasting_glucose", "glucose", "ldl", "hdl", "triglycerides", "total_cholesterol", "creatinine", "egfr", "weight", "systolic", "diastolic"]:
         if key in data and data[key] is not None:
             try:
-                item[key] = float(data[key])
-            except (TypeError, ValueError):
+                item[key] = Decimal(str(data[key]))
+            except Exception:
                 pass
     table.put_item(Item=item)
     return {"status": "logged"}
