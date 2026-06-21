@@ -419,9 +419,12 @@
             const logsRes = await fetch(`${CONFIG.API_ENDPOINT}/health-logs?email=${encodeURIComponent(email)}`);
             if (logsRes.ok) {
                 const logsData = await logsRes.json();
-                renderCharts(logsData.logs || [], prof);
+                // Re-fetch profile for charts (prof was in inner scope)
+                let chartProfile = null;
+                try { const pr = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`); if(pr.ok){const d=await pr.json();chartProfile=d.profile;} } catch(e){}
+                renderCharts(logsData.logs || [], chartProfile);
             } else {
-                renderCharts([], prof);
+                renderCharts([], null);
             }
         } catch(e) { console.error(e); }
     }
