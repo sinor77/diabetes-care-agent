@@ -458,45 +458,45 @@
     function renderCharts(logs, profile) {
         const p = profile || {};
         
-        // Use real log data if available, with actual dates
-        let dates, hba1cData, glucoseData, ldlData, hdlData, trigData, egfrData, creatData, weightData, bpSys, bpDia;
-        
-        if (logs && logs.length >= 2) {
-            // REAL DATA from DynamoDB health-logs
-            dates = logs.map(l => new Date(l.timestamp * 1000).toLocaleDateString());
-            hba1cData = logs.map(l => l.hba1c || null);
-            glucoseData = logs.map(l => l.fasting_glucose || l.glucose || null);
-            ldlData = logs.map(l => l.ldl || null);
-            hdlData = logs.map(l => l.hdl || null);
-            trigData = logs.map(l => l.triglycerides || null);
-            egfrData = logs.map(l => l.egfr || null);
-            creatData = logs.map(l => l.creatinine || null);
-            weightData = logs.map(l => l.weight || null);
-            bpSys = logs.map(l => l.systolic || null);
-            bpDia = logs.map(l => l.diastolic || null);
-        } else {
-            // SIMULATED data based on profile values (for demo)
-            const hba1c = parseFloat(p.hba1c) || 7.5;
-            const weight = parseFloat(p.weight) || 80;
-            const glucose = parseFloat(p.glucose) || 130;
-            const ldl = parseFloat(p.ldl) || 120;
-            const hdl = parseFloat(p.hdl) || 42;
-            const trig = parseFloat(p.triglycerides) || 170;
-            const egfr = parseFloat(p.egfr) || 78;
-            const creat = parseFloat(p.creatinine) || 1.1;
-            
-            dates = getLast30Days();
-            hba1cData = generateTrend(hba1c + 0.5, hba1c, 30);
-            glucoseData = generateDailyGlucose();
-            ldlData = generateTrend(ldl + 15, ldl, 30);
-            hdlData = generateTrend(hdl - 3, hdl, 30);
-            trigData = generateTrend(trig + 20, trig, 30);
-            egfrData = generateTrend(egfr - 5, egfr, 30);
-            creatData = generateTrend(creat + 0.2, creat, 30);
-            weightData = generateTrend(weight + 2, weight, 30);
-            bpSys = generateTrend(138, 132, 30);
-            bpDia = generateTrend(90, 85, 30);
+        // Only show charts if we have REAL data from health-logs
+        if (!logs || logs.length < 1) {
+            // No data yet — show message instead of fake charts
+            const chartIds = ["chart-glycemic","chart-glucose","chart-lipids","chart-kidney","chart-weight","chart-bp","chart-radar"];
+            chartIds.forEach(id => {
+                const canvas = document.getElementById(id);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#9ca3af';
+                    ctx.font = '12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No data yet — patient needs to save profile', canvas.width/2, canvas.height/2);
+                }
+            });
+            // Still render gauges from profile if available
+            const hba1c = parseFloat(p.hba1c) || 0;
+            const bp = p.bp ? parseInt(p.bp.split("/")[0]) : 0;
+            const egfr = parseFloat(p.egfr) || 0;
+            const ldl = parseFloat(p.ldl) || 0;
+            if (hba1c) renderGauge('gauge-hba1c', hba1c, 5.5, 10, hba1c<=7?'#22c55e':hba1c<=8?'#f59e0b':'#ef4444', `${hba1c}%`);
+            if (bp) renderGauge('gauge-bp', bp, 90, 180, bp<=130?'#22c55e':bp<=140?'#f59e0b':'#ef4444', p.bp);
+            if (egfr) renderGauge('gauge-kidney', egfr, 15, 120, egfr>=60?'#22c55e':egfr>=30?'#f59e0b':'#ef4444', `${Math.round(egfr)}`);
+            if (ldl) renderGauge('gauge-cardio', ldl, 50, 200, ldl<=100?'#22c55e':ldl<=130?'#f59e0b':'#ef4444', `${Math.round(ldl)}`);
+            return;
         }
+
+        // REAL DATA from patient's health-logs (actual submission dates)
+        const dates = logs.map(l => new Date(l.timestamp * 1000).toLocaleDateString());
+        const hba1cData = logs.map(l => l.hba1c || null);
+        const glucoseData = logs.map(l => l.fasting_glucose || l.glucose || null);
+        const ldlData = logs.map(l => l.ldl || null);
+        const hdlData = logs.map(l => l.hdl || null);
+        const trigData = logs.map(l => l.triglycerides || null);
+        const egfrData = logs.map(l => l.egfr || null);
+        const creatData = logs.map(l => l.creatinine || null);
+        const weightData = logs.map(l => l.weight || null);
+        const bpSys = logs.map(l => l.systolic || null);
+        const bpDia = logs.map(l => l.diastolic || null);
 
         // Destroy existing charts
         Object.values(charts).forEach(c => { if(c && c.destroy) c.destroy(); });
