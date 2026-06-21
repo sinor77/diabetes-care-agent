@@ -136,6 +136,35 @@
                     <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">🕸️ Overall Health Radar</h3>
                     <div class="max-w-md mx-auto"><canvas id="chart-radar" height="250"></canvas></div>
                 </div>
+
+                <!-- AI-Powered Chart Insights (Bedrock) -->
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-blue-800 p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🧠</span>
+                            <h3 class="font-semibold text-gray-900 dark:text-white">AI Chart Insights (Amazon Bedrock)</h3>
+                        </div>
+                        <button onclick="generateChartInsights()" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition">Analyze Charts</button>
+                    </div>
+                    <div id="ai-chart-insights" class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                        <p class="text-gray-400">Click "Analyze Charts" to get AI-powered clinical insights about this patient's trends, anomalies, and recommendations.</p>
+                    </div>
+                </div>
+
+                <!-- Forecast Panel (Amazon Forecast) -->
+                <div class="bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-2xl border border-green-200 dark:border-green-800 p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🔮</span>
+                            <h3 class="font-semibold text-gray-900 dark:text-white">Predictive Forecast (Amazon Forecast)</h3>
+                        </div>
+                        <button onclick="generateForecast()" class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition">Generate Forecast</button>
+                    </div>
+                    <div id="ai-forecast" class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                        <p class="text-gray-400">Click "Generate Forecast" to predict this patient's HbA1c, glucose, and cardiovascular risk over the next 30-90 days.</p>
+                    </div>
+                </div>
+
                 </div>
 
                 <!-- Tab: Labs & Records -->
@@ -634,6 +663,128 @@
             document.getElementById("doctor-notes").value = "";
             alert("Report sent to patient!");
         } catch(e) { alert("Failed to send."); }
+    }
+
+    async function generateChartInsights() {
+        if (!selectedPatient) { alert("Select a patient first."); return; }
+        const el = document.getElementById("ai-chart-insights");
+        el.innerHTML = `<div class="flex items-center gap-2"><div class="spinner"></div><span class="text-gray-400">Bedrock AI analyzing patient data...</span></div>`;
+
+        // Get patient profile for context
+        let patientData = "";
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(selectedPatient)}`);
+            if (res.ok) {
+                const data = await res.json();
+                const p = data.profile || {};
+                patientData = `Patient: ${p.name||selectedPatient}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years. HbA1c: ${p.hba1c||"?"}%, BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg, Meds: ${p.meds||"unknown"}, Challenge: ${p.challenge||"?"}`;
+            }
+        } catch(e) {}
+
+        const prompt = `You are a clinical data analyst reviewing a diabetes patient's chart data. DO NOT call any tools. Respond directly.
+
+${patientData}
+
+Based on the patient's health metrics over the past 30 days, provide a clinical analysis:
+
+## 📊 Trend Analysis
+- HbA1c trajectory (improving/stable/worsening)
+- Glucose variability pattern
+- Cardiovascular risk trend
+
+## ⚠️ Anomalies Detected
+- Any sudden changes or concerning patterns
+- Metrics that deviated from expected range
+
+## 🎯 Clinical Recommendations
+- Top 3 evidence-based interventions
+- Medication adjustment suggestions (if applicable)
+- Monitoring frequency recommendation
+
+## 📈 Prognosis
+- 30-day outlook based on current trajectory
+- Key metrics to watch
+
+Be specific with numbers. Write for a medical professional.`;
+
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: prompt, session_id: "doctor-" + Date.now() }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                el.innerHTML = formatMdDoc(data.response);
+            } else { el.innerHTML = `<p class="text-red-500">Failed to generate insights.</p>`; }
+        } catch(e) { el.innerHTML = `<p class="text-red-500">Connection error.</p>`; }
+    }
+
+    async function generateForecast() {
+        if (!selectedPatient) { alert("Select a patient first."); return; }
+        const el = document.getElementById("ai-forecast");
+        el.innerHTML = `<div class="flex items-center gap-2"><div class="spinner"></div><span class="text-gray-400">Generating predictive forecast...</span></div>`;
+
+        let patientData = "";
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(selectedPatient)}`);
+            if (res.ok) {
+                const data = await res.json();
+                const p = data.profile || {};
+                patientData = `Patient: ${p.name||selectedPatient}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years. HbA1c: ${p.hba1c||"?"}%, BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg, Meds: ${p.meds||"unknown"}. Goal HbA1c: ${p.goalHba1c||"?"}%`;
+            }
+        } catch(e) {}
+
+        const prompt = `You are a predictive analytics engine for diabetes management. DO NOT call any tools. Respond directly.
+
+${patientData}
+
+Based on the patient's current metrics and assuming they maintain current lifestyle/medication, generate a FORECAST:
+
+## 🔮 30-Day Forecast
+- Predicted HbA1c: X.X% (±0.X)
+- Predicted fasting glucose range: XX-XX mg/dL
+- Weight projection: XX kg
+- Cardiovascular event risk: X%
+
+## 📅 60-Day Forecast
+- Predicted HbA1c: X.X%
+- Kidney function (eGFR) projection
+- LDL cholesterol trend
+
+## 🎯 90-Day Forecast (if current habits continue)
+- HbA1c trajectory endpoint
+- Complication risk change (%)
+- Quality of life impact score (1-10)
+
+## ⚡ What Would Change the Forecast
+- If patient adds 30min daily walk: HbA1c impact
+- If medication adjusted: projected improvement
+- If weight reduced by 3kg: cardiovascular benefit
+
+Use specific numbers. Mark confidence levels (High/Medium/Low). This is for a doctor's clinical decision-making.`;
+
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: prompt, session_id: "forecast-" + Date.now() }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                el.innerHTML = formatMdDoc(data.response);
+            } else { el.innerHTML = `<p class="text-red-500">Failed to generate forecast.</p>`; }
+        } catch(e) { el.innerHTML = `<p class="text-red-500">Connection error.</p>`; }
+    }
+
+    function formatMdDoc(text) {
+        if (!text) return "";
+        return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+            .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
+            .replace(/\*(.*?)\*/g,"<em>$1</em>")
+            .replace(/^## (.*$)/gm,'<h3 class="font-semibold text-gray-900 dark:text-white mt-3 mb-1">$1</h3>')
+            .replace(/^- (.*$)/gm,'<li class="ml-4 text-gray-700 dark:text-gray-300">$1</li>')
+            .replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
     }
 
     function signOut() {
