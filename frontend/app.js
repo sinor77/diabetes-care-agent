@@ -891,20 +891,27 @@ function signIn(email, password) {
         onSuccess: (session) => {
             cognitoUser = cogUser;
             localStorage.setItem("dc_cognito_email", email);
-            localStorage.setItem("dc_role", role);
 
-            // Check if this account's actual role matches selection
+            // Always check actual role from database before proceeding
             fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`)
                 .then(r => r.json())
                 .then(data => {
                     const actualRole = data.profile?._role || "patient";
+                    
+                    // Block doctor from signing in as patient
                     if (actualRole === "expert" && role === "patient") {
-                        showAuthError("This account is registered as a Doctor. Please select Doctor.");
+                        showAuthError("This is a Doctor account. You must select 'Doctor' to sign in.");
                         localStorage.removeItem("dc_cognito_email");
                         localStorage.removeItem("dc_role");
+                        cogUser.signOut();
                         return;
                     }
-                    if (role === "expert") {
+                    
+                    // Use actual role from DB (not radio button) if account exists
+                    const finalRole = actualRole === "expert" ? "expert" : role;
+                    localStorage.setItem("dc_role", finalRole);
+
+                    if (finalRole === "expert") {
                         window.location.href = "doctor.html";
                     } else {
                         onSignedIn(email);
@@ -912,6 +919,8 @@ function signIn(email, password) {
                     }
                 })
                 .catch(() => {
+                    // If fetch fails, use selected role
+                    localStorage.setItem("dc_role", role);
                     if (role === "expert") {
                         window.location.href = "doctor.html";
                     } else {
