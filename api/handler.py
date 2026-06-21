@@ -178,18 +178,23 @@ def _save_health_log(data: dict) -> dict:
 def _get_health_logs(email: str) -> dict:
     """Get health logs for a patient (last 30 days)."""
     from decimal import Decimal
+    from boto3.dynamodb.conditions import Key
     import time
-    dynamodb = boto3.resource("dynamodb", region_name=REGION)
-    table = dynamodb.Table(HEALTH_LOGS_TABLE)
-    thirty_days_ago = int(time.time()) - (30 * 86400)
-    response = table.query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("email").eq(email) & boto3.dynamodb.conditions.Key("timestamp").gte(thirty_days_ago)
-    )
-    logs = []
-    for item in response.get("Items", []):
-        clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items()}
-        logs.append(clean)
-    return {"logs": logs}
+    try:
+        dynamodb = boto3.resource("dynamodb", region_name=REGION)
+        table = dynamodb.Table(HEALTH_LOGS_TABLE)
+        thirty_days_ago = int(time.time()) - (30 * 86400)
+        response = table.query(
+            KeyConditionExpression=Key("email").eq(email) & Key("timestamp").gte(thirty_days_ago)
+        )
+        logs = []
+        for item in response.get("Items", []):
+            clean = {k: (int(v) if isinstance(v, Decimal) and v == int(v) else float(v) if isinstance(v, Decimal) else v) for k, v in item.items()}
+            logs.append(clean)
+        return {"logs": logs}
+    except Exception as e:
+        logger.error(f"Health logs error: {str(e)}")
+        return {"logs": [], "error": str(e)}
 
 
 def _synthesize_speech(text: str) -> dict:

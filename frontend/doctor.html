@@ -369,7 +369,6 @@
                 if (data.profile) {
                     const prof = data.profile;
                     renderPatientDetail(prof);
-                    renderCharts([], prof);
 
                     // Show lab image in Overview tab
                     const labSection = document.getElementById("lab-image-section");
@@ -420,9 +419,9 @@
             const logsRes = await fetch(`${CONFIG.API_ENDPOINT}/health-logs?email=${encodeURIComponent(email)}`);
             if (logsRes.ok) {
                 const logsData = await logsRes.json();
-                if (logsData.logs && logsData.logs.length > 2) {
-                    renderCharts(logsData.logs, null);
-                }
+                renderCharts(logsData.logs || [], prof);
+            } else {
+                renderCharts([], prof);
             }
         } catch(e) { console.error(e); }
     }
@@ -458,34 +457,34 @@
     function renderCharts(logs, profile) {
         const p = profile || {};
         
-        // Only show charts if we have REAL data from health-logs
+        // Always render gauges from profile values
+        const hba1cVal = parseFloat(p.hba1c) || 0;
+        const bpVal = p.bp ? parseInt(p.bp.split("/")[0]) : 0;
+        const bpDiaVal = p.bp ? parseInt(p.bp.split("/")[1]) : 0;
+        const egfrVal = parseFloat(p.egfr) || 0;
+        const ldlVal = parseFloat(p.ldl) || 0;
+        
+        if (hba1cVal) renderGauge('gauge-hba1c', hba1cVal, 5.5, 10, hba1cVal<=7?'#22c55e':hba1cVal<=8?'#f59e0b':'#ef4444', `${hba1cVal}%`);
+        if (bpVal) renderGauge('gauge-bp', bpVal, 90, 180, bpVal<=130?'#22c55e':bpVal<=140?'#f59e0b':'#ef4444', `${bpVal}/${bpDiaVal}`);
+        if (egfrVal) renderGauge('gauge-kidney', egfrVal, 15, 120, egfrVal>=60?'#22c55e':egfrVal>=30?'#f59e0b':'#ef4444', `${Math.round(egfrVal)}`);
+        if (ldlVal) renderGauge('gauge-cardio', ldlVal, 50, 200, ldlVal<=100?'#22c55e':ldlVal<=130?'#f59e0b':'#ef4444', `${Math.round(ldlVal)}`);
+
+        // If no health-log entries, show message on charts
         if (!logs || logs.length < 1) {
-            // No data yet — show message instead of fake charts
             const chartIds = ["chart-glycemic","chart-glucose","chart-lipids","chart-kidney","chart-weight","chart-bp","chart-radar"];
             chartIds.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (canvas) {
                     const ctx = canvas.getContext('2d');
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#9ca3af';
-                    ctx.font = '12px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('No data yet — patient needs to save profile', canvas.width/2, canvas.height/2);
+                    ctx.fillStyle = '#9ca3af'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+                    ctx.fillText('Patient needs to save profile to generate chart data', canvas.width/2, canvas.height/2);
                 }
             });
-            // Still render gauges from profile if available
-            const hba1c = parseFloat(p.hba1c) || 0;
-            const bp = p.bp ? parseInt(p.bp.split("/")[0]) : 0;
-            const egfr = parseFloat(p.egfr) || 0;
-            const ldl = parseFloat(p.ldl) || 0;
-            if (hba1c) renderGauge('gauge-hba1c', hba1c, 5.5, 10, hba1c<=7?'#22c55e':hba1c<=8?'#f59e0b':'#ef4444', `${hba1c}%`);
-            if (bp) renderGauge('gauge-bp', bp, 90, 180, bp<=130?'#22c55e':bp<=140?'#f59e0b':'#ef4444', p.bp);
-            if (egfr) renderGauge('gauge-kidney', egfr, 15, 120, egfr>=60?'#22c55e':egfr>=30?'#f59e0b':'#ef4444', `${Math.round(egfr)}`);
-            if (ldl) renderGauge('gauge-cardio', ldl, 50, 200, ldl<=100?'#22c55e':ldl<=130?'#f59e0b':'#ef4444', `${Math.round(ldl)}`);
             return;
         }
 
-        // REAL DATA from patient's health-logs (actual submission dates)
+        // REAL DATA from patient's health-logs
         const dates = logs.map(l => new Date(l.timestamp * 1000).toLocaleDateString());
         const hba1cData = logs.map(l => l.hba1c || null);
         const glucoseData = logs.map(l => l.fasting_glucose || l.glucose || null);
