@@ -81,8 +81,30 @@ function saveProfile() {
             if (r.ok) toast("☁️", "Profile saved to your account!");
             else toast("💾", "Saved locally (cloud sync failed).");
         }).catch(() => toast("💾", "Saved locally."));
+
+        // Log health metrics for doctor charts (time-series)
+        logHealthMetrics(p);
     } else {
         toast("⚠️", "Sign in to save profile to your account.");
+    }
+}
+
+function logHealthMetrics(p) {
+    if (!p.email) return;
+    const metrics = { email: p.email, timestamp: Math.floor(Date.now() / 1000) };
+    if (p.hba1c) metrics.hba1c = parseFloat(p.hba1c);
+    if (p.weight) metrics.weight = parseFloat(p.weight);
+    if (p.bp) {
+        const parts = p.bp.split("/");
+        if (parts.length === 2) { metrics.systolic = parseInt(parts[0]); metrics.diastolic = parseInt(parts[1]); }
+    }
+    // Only log if we have at least one metric
+    if (metrics.hba1c || metrics.weight || metrics.systolic) {
+        fetch(`${CONFIG.API_ENDPOINT}/health-logs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(metrics),
+        }).catch(() => {});
     }
 }
 

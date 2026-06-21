@@ -371,7 +371,7 @@
                     renderPatientDetail(prof);
                     renderCharts([], prof);
 
-                    // Show lab image if patient uploaded one
+                    // Show lab image in Overview tab
                     const labSection = document.getElementById("lab-image-section");
                     if (prof._labImage) {
                         document.getElementById("lab-image-display").src = "data:image/jpeg;base64," + prof._labImage;
@@ -380,43 +380,47 @@
                         labSection.classList.add("hidden");
                     }
 
-                    // Show patient's saved analyses
+                    // Show lab image in Labs tab too
+                    const labSection2 = document.getElementById("lab-image-section-2");
+                    if (prof._labImage) {
+                        labSection2.innerHTML = `<img src="data:image/jpeg;base64,${prof._labImage}" class="max-w-full rounded-lg border border-gray-200 dark:border-gray-700" alt="Patient Lab Result">`;
+                    } else {
+                        labSection2.innerHTML = `<p class="text-sm text-gray-400">No lab image uploaded by this patient.</p>`;
+                    }
+
+                    // Show patient analyses in Labs tab
+                    const analysesEl = document.getElementById("patient-analyses");
+                    let analysesHtml = "";
+                    if (prof._userData) {
+                        try {
+                            const ud = JSON.parse(prof._userData);
+                            if (ud.results) {
+                                if (ud.results.lab) analysesHtml += `<div class="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800"><span class="text-xs font-medium text-yellow-700">🧪 Lab Interpretation</span><p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.lab}</p></div>`;
+                                if (ud.results.risk) analysesHtml += `<div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"><span class="text-xs font-medium text-red-700">⚡ Risk Assessment</span><p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.risk}</p></div>`;
+                                if (ud.results.plan) analysesHtml += `<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"><span class="text-xs font-medium text-green-700">📋 Plan</span><p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.plan}</p></div>`;
+                                if (ud.results.meal) analysesHtml += `<div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800"><span class="text-xs font-medium text-orange-700">🥗 Meal</span><p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.meal}</p></div>`;
+                            }
+                            if (ud.insights) analysesHtml += `<div class="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800"><span class="text-xs font-medium text-purple-700">💡 Insights</span><p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.insights}</p></div>`;
+                        } catch(e) {}
+                    }
+                    analysesEl.innerHTML = analysesHtml || `<p class="text-sm text-gray-400">No analyses available yet.</p>`;
+
+                    // Show patient data in Overview tab
                     if (prof._userData) {
                         try {
                             const ud = JSON.parse(prof._userData);
                             let extraHtml = "";
-                            if (ud.insights) {
-                                extraHtml += `<div class="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                                    <span class="text-xs font-medium text-purple-700 dark:text-purple-300">💡 AI Insights:</span>
-                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.insights.substring(0,800)}</p></div>`;
-                            }
-                            if (ud.results && ud.results.lab) {
-                                extraHtml += `<div class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                                    <span class="text-xs font-medium text-yellow-700 dark:text-yellow-300">🧪 Lab Interpretation:</span>
-                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.lab.substring(0,600)}</p></div>`;
-                            }
-                            if (ud.results && ud.results.meal) {
-                                extraHtml += `<div class="mt-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                                    <span class="text-xs font-medium text-orange-700 dark:text-orange-300">🥗 Meal Analysis:</span>
-                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.meal.substring(0,400)}</p></div>`;
-                            }
-                            if (ud.results && ud.results.risk) {
-                                extraHtml += `<div class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                                    <span class="text-xs font-medium text-red-700 dark:text-red-300">⚡ Risk Assessment:</span>
-                                    <p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.results.risk.substring(0,400)}</p></div>`;
-                            }
-                            if (extraHtml) {
-                                document.getElementById("patient-detail").innerHTML += extraHtml;
-                            }
+                            if (ud.insights) extraHtml += `<div class="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800"><span class="text-xs font-medium text-purple-700">💡 AI Insights</span><p class="text-sm text-gray-700 dark:text-gray-200 mt-1 whitespace-pre-line">${ud.insights.substring(0,600)}</p></div>`;
+                            if (extraHtml) document.getElementById("patient-detail").innerHTML += extraHtml;
                         } catch(e) {}
                     }
                 }
             }
-            // Load health logs for charts
+            // Load health logs for charts (real data)
             const logsRes = await fetch(`${CONFIG.API_ENDPOINT}/health-logs?email=${encodeURIComponent(email)}`);
             if (logsRes.ok) {
                 const logsData = await logsRes.json();
-                if (logsData.logs && logsData.logs.length) {
+                if (logsData.logs && logsData.logs.length > 2) {
                     renderCharts(logsData.logs, null);
                 }
             }
