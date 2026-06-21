@@ -457,23 +457,46 @@
 
     function renderCharts(logs, profile) {
         const p = profile || {};
-        const dates = logs.length ? logs.map(l => new Date(l.timestamp*1000).toLocaleDateString()) : getLast30Days();
         
-        // Generate intelligent sample data based on patient profile
-        const hba1c = parseFloat(p.hba1c) || 7.5;
-        const weight = parseFloat(p.weight) || 80;
+        // Use real log data if available, with actual dates
+        let dates, hba1cData, glucoseData, ldlData, hdlData, trigData, egfrData, creatData, weightData, bpSys, bpDia;
         
-        const hba1cData = logs.length ? logs.map(l=>l.hba1c) : generateTrend(hba1c+0.8, hba1c, 12);
-        const glucoseData = logs.length ? logs.map(l=>l.glucose) : generateDailyGlucose();
-        const ldlVal = generateSample(100, 160, 1)[0];
-        const hdlVal = generateSample(35, 55, 1)[0];
-        const trigVal = generateSample(130, 220, 1)[0];
-        const tcVal = ldlVal + hdlVal + (trigVal/5);
-        const egfrData = logs.length ? logs.map(l=>l.egfr) : generateTrend(75, 82, 30);
-        const creatData = logs.length ? logs.map(l=>l.creatinine) : generateTrend(1.3, 1.1, 30);
-        const weightData = generateTrend(weight+3, weight, 30);
-        const bpSys = generateTrend(140, 130, 30);
-        const bpDia = generateTrend(92, 85, 30);
+        if (logs && logs.length >= 2) {
+            // REAL DATA from DynamoDB health-logs
+            dates = logs.map(l => new Date(l.timestamp * 1000).toLocaleDateString());
+            hba1cData = logs.map(l => l.hba1c || null);
+            glucoseData = logs.map(l => l.fasting_glucose || l.glucose || null);
+            ldlData = logs.map(l => l.ldl || null);
+            hdlData = logs.map(l => l.hdl || null);
+            trigData = logs.map(l => l.triglycerides || null);
+            egfrData = logs.map(l => l.egfr || null);
+            creatData = logs.map(l => l.creatinine || null);
+            weightData = logs.map(l => l.weight || null);
+            bpSys = logs.map(l => l.systolic || null);
+            bpDia = logs.map(l => l.diastolic || null);
+        } else {
+            // SIMULATED data based on profile values (for demo)
+            const hba1c = parseFloat(p.hba1c) || 7.5;
+            const weight = parseFloat(p.weight) || 80;
+            const glucose = parseFloat(p.glucose) || 130;
+            const ldl = parseFloat(p.ldl) || 120;
+            const hdl = parseFloat(p.hdl) || 42;
+            const trig = parseFloat(p.triglycerides) || 170;
+            const egfr = parseFloat(p.egfr) || 78;
+            const creat = parseFloat(p.creatinine) || 1.1;
+            
+            dates = getLast30Days();
+            hba1cData = generateTrend(hba1c + 0.5, hba1c, 30);
+            glucoseData = generateDailyGlucose();
+            ldlData = generateTrend(ldl + 15, ldl, 30);
+            hdlData = generateTrend(hdl - 3, hdl, 30);
+            trigData = generateTrend(trig + 20, trig, 30);
+            egfrData = generateTrend(egfr - 5, egfr, 30);
+            creatData = generateTrend(creat + 0.2, creat, 30);
+            weightData = generateTrend(weight + 2, weight, 30);
+            bpSys = generateTrend(138, 132, 30);
+            bpDia = generateTrend(90, 85, 30);
+        }
 
         // Destroy existing charts
         Object.values(charts).forEach(c => { if(c && c.destroy) c.destroy(); });
@@ -518,18 +541,23 @@
             options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{y:{min:40,max:300,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,font:{size:8}}}}}
         });
 
-        // 3. Lipid Panel (Horizontal Bar - current vs target)
+        // 3. Lipid Panel (Bar - latest values vs targets)
+        const latestLdl = (ldlData.filter(v=>v) || []).pop() || 120;
+        const latestHdl = (hdlData.filter(v=>v) || []).pop() || 42;
+        const latestTrig = (trigData.filter(v=>v) || []).pop() || 170;
+        const latestTc = latestLdl + latestHdl + (latestTrig/5);
+        
         charts.lipids = new Chart(document.getElementById("chart-lipids"), {
             type: 'bar',
             data: {
-                labels: ['LDL', 'HDL', 'Triglycerides/10', 'Total Chol/10'],
+                labels: ['LDL', 'HDL', 'Trig/10', 'Total/10'],
                 datasets: [{
-                    label: 'Current', data: [ldlVal, hdlVal, trigVal/10, tcVal/10],
+                    label: 'Current', data: [latestLdl, latestHdl, latestTrig/10, latestTc/10],
                     backgroundColor: ['#ef4444','#22c55e','#f59e0b','#8b5cf6'], borderRadius: 4
                 },{
                     label: 'Target', data: [100, 50, 15, 20],
                     backgroundColor: ['rgba(239,68,68,0.2)','rgba(34,197,94,0.2)','rgba(245,158,11,0.2)','rgba(139,92,246,0.2)'],
-                    borderColor: ['#ef4444','#22c55e','#f59e0b','#8b5cf6'], borderWidth: 1, borderDash: [3,3], borderRadius: 4
+                    borderColor: ['#ef4444','#22c55e','#f59e0b','#8b5cf6'], borderWidth: 1, borderRadius: 4
                 }]
             },
             options: {indexAxis:'y', responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{x:{grid:{color:gridColor},ticks:{color:textColor}},y:{ticks:{color:textColor}}}}
@@ -584,12 +612,15 @@
         });
 
         // 7. Health Radar
-        const hba1cScore = Math.max(0, 10 - (hba1c - 5.5) * 2);
-        const bpScore = Math.max(0, 10 - (140 - 120) * 0.2);
-        const kidneyScore = Math.min(10, egfrData[egfrData.length-1] / 10);
-        const lipidScore = Math.max(0, 10 - (ldlVal - 70) * 0.05);
-        const weightScore = weight < 90 ? 8 : weight < 100 ? 6 : 4;
-        const activityScore = 6 + Math.random() * 3;
+        const lastHba1c = (hba1cData.filter(v=>v) || []).pop() || parseFloat(p.hba1c) || 7.5;
+        const lastEgfr = (egfrData.filter(v=>v) || []).pop() || 78;
+        const lastWeight = (weightData.filter(v=>v) || []).pop() || 80;
+        const hba1cScore = Math.max(0, 10 - (lastHba1c - 5.5) * 2);
+        const bpScore = Math.max(0, 10 - (((bpSys.filter(v=>v)||[]).pop()||130) - 120) * 0.2);
+        const kidneyScore = Math.min(10, lastEgfr / 10);
+        const lipidScore = Math.max(0, 10 - (latestLdl - 70) * 0.05);
+        const weightScore = lastWeight < 85 ? 8 : lastWeight < 95 ? 6 : 4;
+        const activityScore = 6 + Math.random() * 2;
 
         charts.radar = new Chart(document.getElementById("chart-radar"), {
             type: 'radar',
@@ -608,11 +639,14 @@
             options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:10}}}}, scales:{r:{min:0,max:10,grid:{color:gridColor},ticks:{color:textColor,stepSize:2},pointLabels:{color:textColor,font:{size:10}}}}}
         });
 
-        // Render risk gauges
-        renderGauge('gauge-hba1c', hba1c, 5.5, 10, hba1c <= 7 ? '#22c55e' : hba1c <= 8 ? '#f59e0b' : '#ef4444', `${hba1c}%`);
-        renderGauge('gauge-bp', 135, 90, 180, 135 <= 130 ? '#22c55e' : 135 <= 140 ? '#f59e0b' : '#ef4444', '135/85');
-        renderGauge('gauge-kidney', egfrData[egfrData.length-1], 15, 120, egfrData[egfrData.length-1] >= 60 ? '#22c55e' : '#f59e0b', `${Math.round(egfrData[egfrData.length-1])}`);
-        renderGauge('gauge-cardio', ldlVal, 50, 200, ldlVal <= 100 ? '#22c55e' : ldlVal <= 130 ? '#f59e0b' : '#ef4444', `${Math.round(ldlVal)}`);
+        // Render risk gauges with real data
+        const gaugeHba1c = lastHba1c;
+        const gaugeBpSys = (bpSys.filter(v=>v)||[]).pop() || 130;
+        const gaugeBpDia = (bpDia.filter(v=>v)||[]).pop() || 85;
+        renderGauge('gauge-hba1c', gaugeHba1c, 5.5, 10, gaugeHba1c <= 7 ? '#22c55e' : gaugeHba1c <= 8 ? '#f59e0b' : '#ef4444', `${gaugeHba1c}%`);
+        renderGauge('gauge-bp', gaugeBpSys, 90, 180, gaugeBpSys <= 130 ? '#22c55e' : gaugeBpSys <= 140 ? '#f59e0b' : '#ef4444', `${gaugeBpSys}/${gaugeBpDia}`);
+        renderGauge('gauge-kidney', lastEgfr, 15, 120, lastEgfr >= 60 ? '#22c55e' : lastEgfr >= 30 ? '#f59e0b' : '#ef4444', `${Math.round(lastEgfr)}`);
+        renderGauge('gauge-cardio', latestLdl, 50, 200, latestLdl <= 100 ? '#22c55e' : latestLdl <= 130 ? '#f59e0b' : '#ef4444', `${Math.round(latestLdl)}`);
     }
 
     function renderGauge(canvasId, value, min, max, color, label) {

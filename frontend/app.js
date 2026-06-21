@@ -59,6 +59,8 @@ function getProfile() {
         goalHba1c: v("input-goal-hba1c"), bp: v("input-bp"), weight: v("input-weight"),
         height: v("input-height"), years: v("input-years"), meds: v("input-meds"),
         challenge: v("input-challenge"), goal: v("input-goal"),
+        glucose: v("input-glucose"), ldl: v("input-ldl"), hdl: v("input-hdl"),
+        triglycerides: v("input-triglycerides"), egfr: v("input-egfr"), creatinine: v("input-creatinine"),
     };
 }
 
@@ -94,12 +96,19 @@ function logHealthMetrics(p) {
     const metrics = { email: p.email, timestamp: Math.floor(Date.now() / 1000) };
     if (p.hba1c) metrics.hba1c = parseFloat(p.hba1c);
     if (p.weight) metrics.weight = parseFloat(p.weight);
+    if (p.glucose) metrics.fasting_glucose = parseFloat(p.glucose);
+    if (p.glucose) metrics.glucose = parseFloat(p.glucose);
+    if (p.ldl) metrics.ldl = parseFloat(p.ldl);
+    if (p.hdl) metrics.hdl = parseFloat(p.hdl);
+    if (p.triglycerides) metrics.triglycerides = parseFloat(p.triglycerides);
+    if (p.egfr) metrics.egfr = parseFloat(p.egfr);
+    if (p.creatinine) metrics.creatinine = parseFloat(p.creatinine);
     if (p.bp) {
         const parts = p.bp.split("/");
         if (parts.length === 2) { metrics.systolic = parseInt(parts[0]); metrics.diastolic = parseInt(parts[1]); }
     }
     // Only log if we have at least one metric
-    if (metrics.hba1c || metrics.weight || metrics.systolic) {
+    if (metrics.hba1c || metrics.weight || metrics.systolic || metrics.glucose || metrics.ldl) {
         fetch(`${CONFIG.API_ENDPOINT}/health-logs`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -145,6 +154,8 @@ function applyProfile(p) {
     setV("input-goal-hba1c",p.goalHba1c); setV("input-bp",p.bp); setV("input-weight",p.weight);
     setV("input-height",p.height); setV("input-years",p.years); setV("input-meds",p.meds);
     setV("input-challenge",p.challenge); setV("input-goal",p.goal);
+    setV("input-glucose",p.glucose); setV("input-ldl",p.ldl); setV("input-hdl",p.hdl);
+    setV("input-triglycerides",p.triglycerides); setV("input-egfr",p.egfr); setV("input-creatinine",p.creatinine);
     localStorage.setItem("dc_profile", JSON.stringify(p));
     showBadge(p.name);
     renderProfileOverview();
