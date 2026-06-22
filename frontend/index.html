@@ -370,17 +370,7 @@
             <div class="space-y-3">
                 <input id="auth-email" type="email" class="inp" placeholder="Email">
                 <input id="auth-password" type="password" class="inp" placeholder="Password (min 8 chars, 1 number)">
-                <div class="flex gap-4 py-2">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="auth-role-radio" value="patient" checked class="accent-brand-600">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">👤 Patient</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="auth-role-radio" value="expert" class="accent-blue-600">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">👨‍⚕️ Doctor</span>
-                    </label>
-                </div>
-                <div id="auth-role-row" class="hidden">
+                <div>
                     <label class="lbl">I am a:</label>
                     <select id="auth-role" class="inp">
                         <option value="patient">Patient</option>

@@ -834,8 +834,7 @@ function handleAuth() {
 
 function signUp(email, password) {
     const userPool = getUserPool();
-    const roleRadio = document.querySelector('input[name="auth-role-radio"]:checked');
-    const role = roleRadio ? roleRadio.value : "patient";
+    const role = document.getElementById("auth-role")?.value || "patient";
     const attributeList = [
         new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email })
     ];
@@ -879,8 +878,7 @@ function confirmSignUp(email) {
 
 function signIn(email, password) {
     // First, check the role in DynamoDB BEFORE attempting to sign in
-    const roleRadio = document.querySelector('input[name="auth-role-radio"]:checked');
-    const selectedRole = roleRadio ? roleRadio.value : "patient";
+    const selectedRole = document.getElementById("auth-role")?.value || "patient";
 
     fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`)
         .then(r => r.json())
