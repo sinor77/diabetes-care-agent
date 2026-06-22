@@ -878,56 +878,53 @@ function confirmSignUp(email) {
 }
 
 function signIn(email, password) {
+    // First, check the role in DynamoDB BEFORE attempting to sign in
+    const roleRadio = document.querySelector('input[name="auth-role-radio"]:checked');
+    const selectedRole = roleRadio ? roleRadio.value : "patient";
+
+    fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`)
+        .then(r => r.json())
+        .then(data => {
+            const actualRole = data.profile?._role;
+            
+            // If account exists, role must match exactly
+            if (actualRole) {
+                if (actualRole !== selectedRole) {
+                    if (actualRole === "expert") {
+                        showAuthError("This is a Doctor account. Select 'Doctor' to sign in.");
+                    } else {
+                        showAuthError("This is a Patient account. Select 'Patient' to sign in.");
+                    }
+                    return;
+                }
+            }
+            // Role matches (or new account) — proceed with Cognito auth
+            doCognitoSignIn(email, password, selectedRole);
+        })
+        .catch(() => {
+            // If profile lookup fails, just attempt sign-in with selected role
+            doCognitoSignIn(email, password, selectedRole);
+        });
+}
+
+function doCognitoSignIn(email, password, role) {
     const userPool = getUserPool();
     const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: password });
     const userData = { Username: email, Pool: userPool };
     const cogUser = new AmazonCognitoIdentity.CognitoUser(userData);
 
-    // Get selected role from radio buttons
-    const roleRadio = document.querySelector('input[name="auth-role-radio"]:checked');
-    const role = roleRadio ? roleRadio.value : "patient";
-
     cogUser.authenticateUser(authDetails, {
         onSuccess: (session) => {
             cognitoUser = cogUser;
             localStorage.setItem("dc_cognito_email", email);
+            localStorage.setItem("dc_role", role);
 
-            // Always check actual role from database before proceeding
-            fetch(`${CONFIG.API_ENDPOINT}/profile?email=${encodeURIComponent(email)}`)
-                .then(r => r.json())
-                .then(data => {
-                    const actualRole = data.profile?._role || "patient";
-                    
-                    // Block doctor from signing in as patient
-                    if (actualRole === "expert" && role === "patient") {
-                        showAuthError("This is a Doctor account. You must select 'Doctor' to sign in.");
-                        localStorage.removeItem("dc_cognito_email");
-                        localStorage.removeItem("dc_role");
-                        cogUser.signOut();
-                        return;
-                    }
-                    
-                    // Use actual role from DB (not radio button) if account exists
-                    const finalRole = actualRole === "expert" ? "expert" : role;
-                    localStorage.setItem("dc_role", finalRole);
-
-                    if (finalRole === "expert") {
-                        window.location.href = "doctor.html";
-                    } else {
-                        onSignedIn(email);
-                        closeAuthModal();
-                    }
-                })
-                .catch(() => {
-                    // If fetch fails, use selected role
-                    localStorage.setItem("dc_role", role);
-                    if (role === "expert") {
-                        window.location.href = "doctor.html";
-                    } else {
-                        onSignedIn(email);
-                        closeAuthModal();
-                    }
-                });
+            if (role === "expert") {
+                window.location.href = "doctor.html";
+            } else {
+                onSignedIn(email);
+                closeAuthModal();
+            }
         },
         onFailure: (err) => { showAuthError(err.message); }
     });
