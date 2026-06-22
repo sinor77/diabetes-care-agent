@@ -746,8 +746,21 @@ async function sendEmailReport() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, name: v("input-name")||"User", analysis: report, profile: getProfile() }),
         });
-        if (res.ok) { toast("📧", `Sent to ${email}!`); }
-        else { downloadFallback(report); }
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === "verification_sent") {
+                alert(`📧 First time email setup:\n\n${data.message}\n\nThis is a one-time step required by AWS for security.`);
+                toast("📧", "Check your inbox for AWS verification");
+            } else {
+                toast("📧", `Sent to ${email}!`);
+            }
+        } else {
+            const err = await res.json().catch(() => ({}));
+            if (err.error && err.error.includes("not verified")) {
+                alert(`📧 Email verification needed:\n\nAWS will send a verification email to ${email}. Click the link in that email, then try sending the report again.`);
+            }
+            downloadFallback(report);
+        }
     } catch { downloadFallback(report); }
     finally { btn.disabled = false; btn.textContent = "Send Report to My Email"; }
 }

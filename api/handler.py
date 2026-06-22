@@ -371,8 +371,25 @@ def _delete_profile(email: str) -> dict:
 
 
 def _send_email_report(to_email: str, name: str, analysis: str, profile: dict) -> dict:
-    """Send analysis report via SES."""
+    """Send analysis report via SES. Auto-verifies recipient email if in sandbox."""
     ses = boto3.client("ses", region_name=REGION)
+
+    # Auto-verify the recipient email if not already verified (sandbox workaround)
+    try:
+        verify_response = ses.get_identity_verification_attributes(Identities=[to_email])
+        attrs = verify_response.get("VerificationAttributes", {})
+        if to_email not in attrs or attrs[to_email].get("VerificationStatus") != "Success":
+            try:
+                ses.verify_email_identity(EmailAddress=to_email)
+                logger.info(f"Verification email sent to {to_email}")
+                return {
+                    "status": "verification_sent",
+                    "message": f"AWS sent a verification email to {to_email}. Please click the link in that email, then try sending the report again."
+                }
+            except ClientError:
+                pass
+    except Exception as e:
+        logger.warning(f"Could not check verification: {e}")
 
     profile_summary = ""
     if profile:
@@ -432,8 +449,13 @@ def _send_email_report(to_email: str, name: str, analysis: str, profile: dict) -
     except ClientError as e:
         error_msg = e.response["Error"]["Message"]
         logger.error(f"SES error: {error_msg}")
-        if "not verified" in error_msg.lower() or "not authorized" in error_msg.lower():
-            return {"error": "Email not configured. Verify sender email in Amazon SES."}
+        # If recipient not verified (sandbox), auto-trigger verification
+        if "Email address is not verified" in error_msg or "MessageRejected" in str(e):
+            try:
+                ses.verify_email_identity(EmailAddress=to_email)
+                return {"status": "verification_sent", "message": f"AWS sent a verification email to {to_email}. Please check your inbox (and spam folder), click the verification link, then try sending the report again."}
+            except Exception:
+                pass
         return {"error": f"Email failed: {error_msg}"}
     except Exception as e:
         logger.error(f"Email error: {str(e)}")
