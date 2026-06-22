@@ -97,11 +97,11 @@
                 <!-- Charts Row 1: Glycemic + Glucose -->
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📊 HbA1c Trend (3 months)</h3>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📊 HbA1c History (per submission)</h3>
                         <canvas id="chart-glycemic" height="180"></canvas>
                     </div>
                     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📈 Daily Glucose Pattern</h3>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">📈 Glucose History (per submission)</h3>
                         <canvas id="chart-glucose" height="180"></canvas>
                     </div>
                 </div>
@@ -512,39 +512,40 @@
         const gridColor = darkMode ? '#374151' : '#f3f4f6';
         const textColor = darkMode ? '#9ca3af' : '#6b7280';
 
-        // 1. HbA1c Trend (Line with area + target zone)
+        // 1. HbA1c Trend (uses real submission dates, oldest left → newest right)
+        const hba1cLabels = dates.length ? dates : ['No data'];
         charts.glycemic = new Chart(document.getElementById("chart-glycemic"), {
             type: 'line',
             data: {
-                labels: ['3mo ago','','','2mo ago','','','1mo ago','','','Now','','Latest'],
+                labels: hba1cLabels,
                 datasets: [{
                     label: 'HbA1c %', data: hba1cData,
-                    borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4, pointRadius: 3
+                    borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4, pointRadius: 4
                 },{
-                    label: 'Target (7%)', data: Array(12).fill(7),
+                    label: 'Target (7%)', data: Array(hba1cLabels.length).fill(7),
                     borderColor: '#22c55e', borderDash: [5,5], pointRadius: 0, fill: false
                 }]
             },
-            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:10}}}}, scales:{y:{min:5,max:11,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,font:{size:9}}}}}
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:10}}}}, scales:{y:{min:5,max:11,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,font:{size:9},maxRotation:45,minRotation:45}}}}
         });
 
-        // 2. Daily Glucose (Area chart with zones)
+        // 2. Glucose History (real submission dates)
         charts.glucose = new Chart(document.getElementById("chart-glucose"), {
             type: 'line',
             data: {
-                labels: glucoseData.map((_,i) => `${6+i}:00`),
+                labels: dates,
                 datasets: [{
                     label: 'Glucose mg/dL', data: glucoseData,
-                    borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.15)', fill: true, tension: 0.3, pointRadius: 2
+                    borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.15)', fill: true, tension: 0.3, pointRadius: 3
                 },{
-                    label: 'Upper limit', data: Array(glucoseData.length).fill(180),
+                    label: 'Upper limit (180)', data: Array(dates.length).fill(180),
                     borderColor: '#f59e0b', borderDash: [3,3], pointRadius: 0
                 },{
-                    label: 'Lower limit', data: Array(glucoseData.length).fill(70),
+                    label: 'Lower limit (70)', data: Array(dates.length).fill(70),
                     borderColor: '#ef4444', borderDash: [3,3], pointRadius: 0
                 }]
             },
-            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{y:{min:40,max:300,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,font:{size:8}}}}}
+            options: {responsive:true, plugins:{legend:{labels:{color:textColor,font:{size:9}}}}, scales:{y:{min:40,max:300,grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,font:{size:8},maxRotation:45,minRotation:45}}}}
         });
 
         // 3. Lipid Panel (Bar - latest values vs targets)
