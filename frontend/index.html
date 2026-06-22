@@ -320,10 +320,24 @@
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                     <h2 class="font-bold text-gray-900 dark:text-white mb-2">📤 Send to Doctor</h2>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Share your profile, insights, and analysis history with the selected doctor.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Share your data with the selected doctor.</p>
                     <div id="selected-doctor" class="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300">No doctor selected</div>
-                    <textarea id="patient-message" rows="3" class="inp resize-none mb-3" placeholder="Optional message to the doctor (symptoms, questions, concerns)..."></textarea>
-                    <button onclick="sendToDoctor()" class="w-full py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition">📤 Send My Health Data to Doctor</button>
+                    
+                    <div class="mb-3">
+                        <label class="lbl">What to share:</label>
+                        <div class="space-y-1.5 mt-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="share-profile" checked class="accent-brand-600"><span>👤 Profile data</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="share-insights" checked class="accent-brand-600"><span>💡 AI Insights</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="share-labs" checked class="accent-brand-600"><span>🧪 Lab analysis & image</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="share-meal" class="accent-brand-600"><span>🥗 Meal analysis</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="share-risk" class="accent-brand-600"><span>⚡ Risk assessment</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="share-plan" class="accent-brand-600"><span>📋 Daily plan</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="share-chat" class="accent-brand-600"><span>🤖 AI Coach conversation</span></label>
+                        </div>
+                    </div>
+
+                    <textarea id="patient-message" rows="3" class="inp resize-none mb-3" placeholder="Optional message to the doctor..."></textarea>
+                    <button onclick="sendToDoctor()" class="w-full py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition">📤 Send Selected Data to Doctor</button>
                     
                     <div class="mt-6">
                         <h3 class="font-semibold text-gray-900 dark:text-white mb-2">📩 Doctor Reports for You</h3>

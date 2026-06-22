@@ -63,6 +63,7 @@
                     <button class="doc-tab active" onclick="switchDocTab('overview')">📋 Overview</button>
                     <button class="doc-tab" onclick="switchDocTab('charts')">📊 Charts</button>
                     <button class="doc-tab" onclick="switchDocTab('labs')">🧪 Lab & Records</button>
+                    <button class="doc-tab" onclick="switchDocTab('shared')">📤 Shared Data</button>
                     <button class="doc-tab" onclick="switchDocTab('alerts')">🚨 Alerts</button>
                 </div>
 
@@ -180,6 +181,17 @@
                         <p class="text-sm text-gray-400">Select a patient to see their AI analyses.</p>
                     </div>
                 </div>
+                </div>
+
+                <!-- Tab: Shared Data -->
+                <div id="doc-tab-shared" class="doc-tab-content hidden space-y-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="font-semibold text-gray-900 dark:text-white mb-3">📤 Data Shared by Patient</h3>
+                        <p class="text-xs text-gray-500 mb-4">All referrals from this patient with the data they chose to include.</p>
+                        <div id="shared-data-list" class="space-y-3">
+                            <p class="text-sm text-gray-400 text-center py-4">Select a patient to view shared data history.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tab: Alerts -->
@@ -425,8 +437,68 @@
             } else {
                 renderCharts([], null);
             }
+            
+            // Load shared data history (referrals from this patient)
+            loadSharedData(email);
         } catch(e) { console.error(e); }
     }
+
+    async function loadSharedData(patientEmail) {
+        const el = document.getElementById("shared-data-list");
+        if (!el) return;
+        const doctorEmail = localStorage.getItem("dc_cognito_email");
+        try {
+            const res = await fetch(`${CONFIG.API_ENDPOINT}/referrals?email=${encodeURIComponent(doctorEmail)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const myReferrals = (data.referrals || []).filter(r => r.patientEmail === patientEmail).sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+            
+            if (!myReferrals.length) {
+                el.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">No shared data from this patient yet.</p>`;
+                return;
+            }
+            
+            el.innerHTML = myReferrals.map((r, idx) => {
+                const date = r.timestamp ? new Date(r.timestamp).toLocaleString() : "Unknown date";
+                let includes = {};
+                try { includes = JSON.parse(r._includes || "{}"); } catch(e) {}
+                
+                const badges = [];
+                if (includes.profile) badges.push('<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">👤 Profile</span>');
+                if (includes.insights) badges.push('<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">💡 Insights</span>');
+                if (includes.labs) badges.push('<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">🧪 Labs</span>');
+                if (includes.meal) badges.push('<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">🥗 Meal</span>');
+                if (includes.risk) badges.push('<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">⚡ Risk</span>');
+                if (includes.plan) badges.push('<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">📋 Plan</span>');
+                if (includes.chat) badges.push('<span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">🤖 Chat</span>');
+                
+                let body = "";
+                if (r.message) body += `<div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm"><strong>Message:</strong> ${escapeHtml(r.message)}</div>`;
+                if (r.profile) {
+                    try { const pf = JSON.parse(r.profile); body += `<details class="mt-2"><summary class="text-xs cursor-pointer text-blue-600">👤 Profile snapshot</summary><pre class="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded mt-1 whitespace-pre-wrap">${escapeHtml(JSON.stringify(pf, null, 2))}</pre></details>`; } catch(e){}
+                }
+                if (r.insights) body += `<details class="mt-2"><summary class="text-xs cursor-pointer text-purple-600">💡 AI Insights</summary><div class="text-xs bg-purple-50 dark:bg-purple-900/20 p-2 rounded mt-1 whitespace-pre-line">${escapeHtml(r.insights)}</div></details>`;
+                if (r.labs) body += `<details class="mt-2"><summary class="text-xs cursor-pointer text-yellow-600">🧪 Lab Analysis</summary><div class="text-xs bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded mt-1 whitespace-pre-line">${escapeHtml(r.labs)}</div></details>`;
+                if (r.meal) body += `<details class="mt-2"><summary class="text-xs cursor-pointer text-orange-600">🥗 Meal Analysis</summary><div class="text-xs bg-orange-50 dark:bg-orange-900/20 p-2 rounded mt-1 whitespace-pre-line">${escapeHtml(r.meal)}</div></details>`;
+                if (r.risk) body += `<details class="mt-2"><summary class="text-xs cursor-pointer text-red-600">⚡ Risk</summary><div class="text-xs bg-red-50 dark:bg-red-900/20 p-2 rounded mt-1 whitespace-pre-line">${escapeHtml(r.risk)}</div></details>`;
+                if (r.plan) body += `<details class="mt-2"><summary class="text-xs cursor-pointer text-green-600">📋 Plan</summary><div class="text-xs bg-green-50 dark:bg-green-900/20 p-2 rounded mt-1 whitespace-pre-line">${escapeHtml(r.plan)}</div></details>`;
+                if (r.chat) {
+                    try { const c = JSON.parse(r.chat); const chatHtml = c.map(m => `<p class="text-xs"><strong>${m.role}:</strong> ${escapeHtml(m.text||"")}</p>`).join(""); body += `<details class="mt-2"><summary class="text-xs cursor-pointer text-indigo-600">🤖 AI Chat (${c.length} msgs)</summary><div class="bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded mt-1 space-y-1 max-h-40 overflow-y-auto">${chatHtml}</div></details>`; } catch(e){}
+                }
+                
+                return `<div class="border border-gray-200 dark:border-gray-600 rounded-xl p-4 ${idx===0?'bg-blue-50/50 dark:bg-blue-900/10':''}">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">${idx===0?'🆕 ':'📋 '}Submission ${myReferrals.length - idx}</span>
+                        <span class="text-xs text-gray-500">${date}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2">${badges.join('')}</div>
+                    ${body}
+                </div>`;
+            }).join("");
+        } catch(e) { console.error(e); }
+    }
+
+    function escapeHtml(t) { const d = document.createElement("div"); d.textContent = t || ""; return d.innerHTML; }
 
     function renderPatientDetail(p) {
         document.getElementById("patient-detail").innerHTML = `

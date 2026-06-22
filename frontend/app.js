@@ -80,15 +80,43 @@ function saveProfile() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...p, _role: role }),
         }).then(r => {
-            if (r.ok) toast("☁️", "Profile saved to your account!");
+            if (r.ok) toast("☁️", "Profile saved! Updating insights...");
             else toast("💾", "Saved locally (cloud sync failed).");
         }).catch(() => toast("💾", "Saved locally."));
 
         // Log health metrics for doctor charts (time-series)
         logHealthMetrics(p);
+        
+        // Auto-update insights when profile changes
+        autoUpdateInsights(p);
     } else {
         toast("⚠️", "Sign in to save profile to your account.");
     }
+}
+
+async function autoUpdateInsights(p) {
+    if (!p.hba1c && !p.name) return; // Need at least some data
+    
+    const allData = Object.entries(results).filter(([k,v])=>v && k!=="insights").map(([k,v])=>`[${k}]: ${v?.substring(0,300)}`).join("\n");
+    const prompt = `You are a diabetes health insights analyst. DO NOT call any tools. Respond directly.\n\nPatient: ${p.name||"User"}, ${p.age||"?"}yo, ${p.dtype||"Type 2"} for ${p.years||"?"} years.\nHbA1c: ${p.hba1c||"?"}% (goal ${p.goalHba1c||"?"}%), BP: ${p.bp||"?"}, Weight: ${p.weight||"?"}kg, Glucose: ${p.glucose||"?"}, LDL: ${p.ldl||"?"}, HDL: ${p.hdl||"?"}, Triglycerides: ${p.triglycerides||"?"}, eGFR: ${p.egfr||"?"}.\nMeds: ${p.meds||"unknown"}, Challenge: ${p.challenge||"?"}\n\nPrevious analyses:\n${allData}\n\nProvide quick health insights:\n## 📊 Health Score (1-10)\n## 📈 Positive Trends (2)\n## ⚠️ Concerns (2)\n## 🎯 This Week's Focus (3)\n## 💡 Tips (2)`;
+
+    try {
+        const res = await fetch(`${CONFIG.API_ENDPOINT}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: prompt, session_id: sessionId || crypto.randomUUID() }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            results.insights = data.response;
+            localStorage.setItem("dc_latest_insight", data.response);
+            renderLatestInsight(data.response);
+            const insightsEl = document.getElementById("out-insights");
+            if (insightsEl) insightsEl.innerHTML = formatMd(data.response);
+            saveUserData();
+            toast("✨", "Insights updated based on profile changes!");
+        }
+    } catch(e) {}
 }
 
 function logHealthMetrics(p) {
@@ -1056,19 +1084,38 @@ async function sendToDoctor() {
 
     const p = getProfile();
     const message = document.getElementById("patient-message")?.value || "";
-    const insightData = results.insights || localStorage.getItem("dc_latest_insight") || "";
 
-    // Log current health metrics every time a report is sent (creates time-series for doctor charts)
+    // Read checkboxes
+    const include = {
+        profile: document.getElementById("share-profile")?.checked,
+        insights: document.getElementById("share-insights")?.checked,
+        labs: document.getElementById("share-labs")?.checked,
+        meal: document.getElementById("share-meal")?.checked,
+        risk: document.getElementById("share-risk")?.checked,
+        plan: document.getElementById("share-plan")?.checked,
+        chat: document.getElementById("share-chat")?.checked,
+    };
+
+    // Always log health metrics on report send
     logHealthMetrics({...p, email: authEmail});
+
+    // Build shared data based on checkboxes
+    const sharedData = { _includes: JSON.stringify(include) };
+    if (include.profile) sharedData.profile = JSON.stringify(p);
+    if (include.insights) sharedData.insights = (results.insights || localStorage.getItem("dc_latest_insight") || "").substring(0, 3000);
+    if (include.labs) sharedData.labs = (results.lab || "").substring(0, 2000);
+    if (include.meal) sharedData.meal = (results.meal || "").substring(0, 2000);
+    if (include.risk) sharedData.risk = (results.risk || "").substring(0, 2000);
+    if (include.plan) sharedData.plan = (results.plan || "").substring(0, 2000);
+    if (include.chat && chatHistory.length) sharedData.chat = JSON.stringify(chatHistory.slice(-20));
 
     const referral = {
         doctorEmail: selectedDoctorEmail,
         patientEmail: authEmail,
         patientName: p.name || authEmail,
-        profile: p,
-        insights: insightData.substring(0, 2000),
         message: message,
         timestamp: Date.now(),
+        ...sharedData,
     };
 
     try {
