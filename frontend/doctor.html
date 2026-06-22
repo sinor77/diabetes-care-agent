@@ -64,7 +64,6 @@
                     <button class="doc-tab" onclick="switchDocTab('charts')">📊 Charts</button>
                     <button class="doc-tab" onclick="switchDocTab('labs')">🧪 Lab & Records</button>
                     <button class="doc-tab" onclick="switchDocTab('alerts')">🚨 Alerts</button>
-                    <button class="doc-tab" onclick="switchDocTab('actions')">📝 Actions</button>
                 </div>
 
                 <!-- Tab: Overview -->
@@ -202,14 +201,7 @@
                 </div>
                 </div>
 
-                <!-- Tab: Actions -->
-                <div id="doc-tab-actions" class="doc-tab-content hidden space-y-4">
-                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">📝 Send Report to Patient</h3>
-                    <textarea id="doctor-notes" rows="4" class="inp resize-none" placeholder="Write your clinical notes, recommendations, or medication changes..."></textarea>
-                    <button onclick="sendDoctorReport()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition">Send Report to Patient</button>
-                </div>
-                </div>
+                <!-- Tab: Actions REMOVED — Send Report moved to Alerts tab -->
 
             </div>
         </div>
@@ -374,6 +366,8 @@
                     const labSection = document.getElementById("lab-image-section");
                     if (prof._labImage) {
                         document.getElementById("lab-image-display").src = "data:image/jpeg;base64," + prof._labImage;
+                        document.getElementById("lab-image-display").style.cursor = "zoom-in";
+                        document.getElementById("lab-image-display").onclick = function() { window.open(this.src); };
                         labSection.classList.remove("hidden");
                     } else {
                         labSection.classList.add("hidden");
@@ -382,7 +376,12 @@
                     // Show lab image in Labs tab too
                     const labSection2 = document.getElementById("lab-image-section-2");
                     if (prof._labImage) {
-                        labSection2.innerHTML = `<img src="data:image/jpeg;base64,${prof._labImage}" class="max-w-full rounded-lg border border-gray-200 dark:border-gray-700" alt="Patient Lab Result">`;
+                        labSection2.innerHTML = `<img src="data:image/jpeg;base64,${prof._labImage}" 
+                            style="cursor:zoom-in;max-width:100%;height:auto;" 
+                            onclick="window.open(this.src);" 
+                            class="rounded-lg border border-gray-200 dark:border-gray-700 shadow-md" 
+                            alt="Patient Lab Result">
+                            <p class="text-xs text-gray-500 mt-2">📌 Click image to view full size</p>`;
                     } else {
                         labSection2.innerHTML = `<p class="text-sm text-gray-400">No lab image uploaded by this patient.</p>`;
                     }

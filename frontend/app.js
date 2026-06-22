@@ -219,8 +219,8 @@ function onLabUpload(e) {
 
     if (file.type.startsWith("image/")) {
         labImageType = file.type;
-        // Compress image to max 800px and reasonable quality
-        compressImage(file, 800, 0.7).then(b64 => {
+        // Compress image to max 1000px and 80% quality (fits DynamoDB 400KB limit but stays clear)
+        compressImage(file, 1000, 0.8).then(b64 => {
             labImageBase64 = b64;
             labFileText = "[Image uploaded - will be analyzed with AI vision]";
             document.getElementById("lab-upload-status").innerHTML += `<p class="text-xs text-gray-400 mt-1">Compressed for analysis</p>`;
@@ -350,7 +350,7 @@ async function runLabVision(p, el) {
         fetch(`${CONFIG.API_ENDPOINT}/profile`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: authEmail, _labImage: labImageBase64.substring(0, 50000) }),
+            body: JSON.stringify({ email: authEmail, _labImage: labImageBase64 }),
         }).catch(() => {});
     }
 
