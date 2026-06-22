@@ -459,6 +459,11 @@
     function renderCharts(logs, profile) {
         const p = profile || {};
         
+        // Sort logs chronologically (oldest → newest, left to right)
+        if (logs && logs.length) {
+            logs = [...logs].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        }
+        
         // Always render gauges from profile values
         const hba1cVal = parseFloat(p.hba1c) || 0;
         const bpVal = p.bp ? parseInt(p.bp.split("/")[0]) : 0;

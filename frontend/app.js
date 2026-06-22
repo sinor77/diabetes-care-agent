@@ -1058,6 +1058,9 @@ async function sendToDoctor() {
     const message = document.getElementById("patient-message")?.value || "";
     const insightData = results.insights || localStorage.getItem("dc_latest_insight") || "";
 
+    // Log current health metrics every time a report is sent (creates time-series for doctor charts)
+    logHealthMetrics({...p, email: authEmail});
+
     const referral = {
         doctorEmail: selectedDoctorEmail,
         patientEmail: authEmail,
