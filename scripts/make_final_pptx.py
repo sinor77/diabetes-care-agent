@@ -159,53 +159,63 @@ study(s,6.66,"Telemedicine cuts specialist wait by 64%",
 sn(s,3)
 
 
-# ===== SLIDE 4: FULL ARCHITECTURE =====
+# ===== SLIDE 4: FULL ARCHITECTURE (Clean workflow) =====
 s=S(); hdr(s,"System Architecture")
-T(s,0.5,0.85,12,0.5,"How Everything Is Connected",sz=26,b=True,c=TEXT)
-T(s,0.5,1.3,12,0.3,"Every arrow = real data flow between AWS services. Fully serverless.",sz=11,c=MUTED)
+T(s,0.5,0.85,12,0.5,"System Workflow — Top to Bottom",sz=26,b=True,c=TEXT)
+T(s,0.5,1.3,12,0.3,"Follow the arrows: User action → AWS service → Result",sz=11,c=MUTED)
 
-# ROW 1: Three users at top
-box(s,1.5,1.8,2.5,0.55,"👤 PATIENT\n(Web App)",GREEN,GL)
-box(s,5.4,1.8,2.5,0.55,"👨‍⚕️ DOCTOR\n(Dashboard)",BLUE,RGBColor(0xDB,0xEA,0xFE))
-box(s,9.3,1.8,2.5,0.55,"🔐 ADMIN\n(Control Panel)",PURPLE,RGBColor(0xF3,0xE8,0xFF))
+# LAYER 1: Users (top)
+box(s,2.0,1.7,2.6,0.5,"👤 Patient",GREEN,GL)
+box(s,5.4,1.7,2.6,0.5,"👨‍⚕️ Doctor",BLUE,RGBColor(0xDB,0xEA,0xFE))
+box(s,8.8,1.7,2.6,0.5,"🔐 Admin",PURPLE,RGBColor(0xF3,0xE8,0xFF))
 
-# Lines down from users to CloudFront
-line(s,2.75,2.35,6.65,2.6); line(s,6.65,2.35,6.65,2.6); line(s,10.55,2.35,6.65,2.6)
+# Arrow: all 3 users → CloudFront (single entry point)
+line(s,3.3,2.2,6.65,2.45,GREEN); line(s,6.7,2.2,6.65,2.45,BLUE); line(s,10.1,2.2,6.65,2.45,PURPLE)
 
-# ROW 2: CloudFront
-box(s,4.5,2.6,4.3,0.5,"Amazon CloudFront + S3\n(HTTPS Website Hosting)",CYAN)
-line(s,6.65,3.1,6.65,3.4)
+# LAYER 2: Entry (CloudFront + Cognito side by side)
+box(s,4.3,2.45,4.7,0.5,"Amazon CloudFront + S3\n(Serves the website securely via HTTPS)",CYAN)
 
-# ROW 3: Auth + API
-box(s,1.2,3.4,3.2,0.55,"Amazon Cognito\n(Sign In/Up · Patient vs Doctor roles)",PURPLE)
-box(s,4.7,3.4,4.0,0.55,"Amazon API Gateway\n(14 REST API Endpoints · CORS)",AMBER)
-box(s,9.0,3.4,3.5,0.55,"AWS Lambda\n(Python Backend · All Logic)",GREEN)
-line(s,4.4,3.67,4.7,3.67); line(s,8.7,3.67,9.0,3.67)
-line(s,6.7,3.95,6.7,4.25)
+# Arrow: CloudFront → API Gateway
+line(s,6.65,2.95,6.65,3.25,CYAN)
 
-# ROW 4: Core AI + Data
-box(s,0.4,4.25,3.0,0.7,"Amazon Bedrock Agent\nClaude 3 Haiku\n(AI Brain — chat, analyze)",ORANGE,RGBColor(0xFF,0xED,0xD5))
-box(s,3.65,4.25,2.8,0.7,"Amazon DynamoDB\n• profiles\n• health-logs\n• referrals",BLUE,RGBColor(0xDB,0xEA,0xFE))
-box(s,6.7,4.25,2.5,0.7,"Amazon Textract\n(Reads lab photos)\n+Comprehend Medical",PURPLE,RGBColor(0xF3,0xE8,0xFF))
-box(s,9.45,4.25,3.4,0.7,"Amazon Polly (TTS)\n+Step Functions (Pipeline)\n+EventBridge (Alerts)",PINK,RGBColor(0xFC,0xE7,0xF3))
+# LAYER 3: Gateway + Auth
+box(s,2.2,3.25,3.5,0.5,"Amazon Cognito\n(Login · Patient or Doctor role)",PURPLE)
+box(s,6.0,3.25,5.2,0.5,"Amazon API Gateway → AWS Lambda\n(Receives all requests · Runs Python logic)",GREEN)
 
-# Lines from Lambda down to all services
-line(s,10.5,3.95,1.9,4.25); line(s,10.5,3.95,5.05,4.25)
-line(s,10.5,3.95,7.95,4.25); line(s,10.5,3.95,11.15,4.25)
+# Arrow: Cognito → API (auth token)
+line(s,5.7,3.5,6.0,3.5,PURPLE)
 
-# ROW 5: Output services
-box(s,1.5,5.3,2.6,0.5,"Amazon SES\n(Email Reports to Users)",GREEN)
-box(s,4.4,5.3,2.8,0.5,"Amazon CloudWatch\n(Live Monitoring Dashboard)",RED)
-box(s,7.5,5.3,2.5,0.5,"AWS SNS\n(Notifications)",AMBER)
-box(s,10.3,5.3,2.5,0.5,"Amazon Forecast\n(AI Predictions)",CYAN)
+# Arrow: Lambda → down to all services
+line(s,8.6,3.75,8.6,4.15,GREEN)
 
-line(s,1.9,4.95,2.8,5.3); line(s,5.05,4.95,5.8,5.3)
-line(s,7.95,4.95,8.75,5.3); line(s,11.15,4.95,11.55,5.3)
+# LAYER 4: What Lambda calls (the brain + data)
+box(s,0.5,4.15,4.2,0.7,"Amazon Bedrock Agent\n(Claude 3 Haiku)\nAI brain: chat, analyze, plan, predict",ORANGE,RGBColor(0xFF,0xED,0xD5))
+box(s,4.95,4.15,3.8,0.7,"Amazon DynamoDB\n(3 Tables)\nProfiles · Health Logs · Referrals",BLUE,RGBColor(0xDB,0xEA,0xFE))
+box(s,9.0,4.15,4.2,0.7,"Specialized AI Services\nTextract (read lab photos)\nComprehend Medical (extract meds)",PURPLE,RGBColor(0xF3,0xE8,0xFF))
 
-# Flow summary
-card(s,0.5,6.1,12.3,1.0,fill=GL,border=GREEN)
-T(s,0.7,6.2,11.9,0.35,"Complete Flow:",sz=11,b=True,c=GREEN)
-T(s,0.7,6.55,11.9,0.5,"Patient signs in (Cognito) → fills profile (DynamoDB) → uploads lab (Textract reads it) → chats with AI (Bedrock) → sends to Doctor (referral stored in DynamoDB) → Doctor sees charts + alerts (EventBridge) → sends report back (SES email) → CloudWatch monitors everything",sz=9,c=TEXT)
+# Arrows from Lambda down to each
+line(s,8.6,4.15,2.6,4.15,ORANGE)  # to Bedrock
+line(s,8.6,4.15,6.85,4.15,BLUE)   # to DynamoDB
+line(s,8.6,4.15,11.1,4.15,PURPLE) # to Textract
+
+# LAYER 5: Output services (what comes back to user)
+box(s,0.5,5.2,3.2,0.6,"Amazon Polly\n(Reads results aloud\nfor accessibility)",PINK,RGBColor(0xFC,0xE7,0xF3))
+box(s,3.95,5.2,3.2,0.6,"Amazon SES\n(Sends email reports\nto patient inbox)",GREEN,GL)
+box(s,7.4,5.2,2.8,0.6,"EventBridge\n(Fires alerts when\nmetrics cross limits)",AMBER,RGBColor(0xFE,0xF3,0xC7))
+box(s,10.45,5.2,2.6,0.6,"CloudWatch\n(Monitors system\nhealth + metrics)",RED,RGBColor(0xFE,0xE2,0xE2))
+
+# Arrows from core services down to outputs
+line(s,2.6,4.85,2.1,5.2,PINK)     # Bedrock → Polly
+line(s,6.85,4.85,5.55,5.2,GREEN)  # DynamoDB → SES
+line(s,6.85,4.85,8.8,5.2,AMBER)   # DynamoDB → EventBridge
+line(s,8.6,4.85,11.75,5.2,RED)    # Lambda → CloudWatch
+
+# LAYER 6: Step Functions (orchestration bar at bottom)
+box(s,2.5,6.1,8.4,0.5,"AWS Step Functions — Orchestrates: Meal → Lab → Risk → Plan → Insights (automated pipeline)",AMBER,RGBColor(0xFE,0xF3,0xC7))
+line(s,6.7,5.8,6.7,6.1,AMBER) # connects from middle
+
+# Legend
+T(s,0.5,6.85,12.3,0.35,"14 AWS Services · Every arrow = real API call · Fully serverless (no servers to manage)",sz=10,b=True,c=GREEN,a=PP_ALIGN.CENTER)
 sn(s,4)
 
 # ===== SLIDE 5: PATIENT TOOLS ARCHITECTURE =====
@@ -361,6 +371,6 @@ T(s,0.5,6.5,12.3,0.4,"Thank you  ·  Terima kasih",sz=14,c=MUTED,a=PP_ALIGN.CENT
 sn(s,10)
 
 # ===== SAVE =====
-out="presentation/DiabetesControl_AI_Final.pptx"
+out="presentation/DiabetesControl_AI_v3.pptx"
 prs.save(out)
 print(f"Done: {out}")
