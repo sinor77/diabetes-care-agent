@@ -159,63 +159,53 @@ study(s,6.66,"Telemedicine cuts specialist wait by 64%",
 sn(s,3)
 
 
-# ===== SLIDE 4: FULL ARCHITECTURE (Clean workflow) =====
+
+# ===== SLIDE 4: ARCHITECTURE (Step by Step) =====
 s=S(); hdr(s,"System Architecture")
-T(s,0.5,0.85,12,0.5,"System Workflow — Top to Bottom",sz=26,b=True,c=TEXT)
-T(s,0.5,1.3,12,0.3,"Follow the arrows: User action → AWS service → Result",sz=11,c=MUTED)
+T(s,0.5,0.85,12,0.5,"How It Works \u2014 Step by Step",sz=26,b=True,c=TEXT)
 
-# LAYER 1: Users (top)
-box(s,2.0,1.7,2.6,0.5,"👤 Patient",GREEN,GL)
-box(s,5.4,1.7,2.6,0.5,"👨‍⚕️ Doctor",BLUE,RGBColor(0xDB,0xEA,0xFE))
-box(s,8.8,1.7,2.6,0.5,"🔐 Admin",PURPLE,RGBColor(0xF3,0xE8,0xFF))
+# STEP 1
+T(s,0.3,1.5,0.9,0.5,"STEP 1\nUsers",sz=8,b=True,c=MUTED)
+box(s,1.2,1.5,3.3,0.5,"Patient App\nProfile \u00b7 AI Tools \u00b7 Send to Dr",GREEN,GL)
+box(s,4.7,1.5,3.3,0.5,"Doctor Dashboard\nCharts \u00b7 Alerts \u00b7 Reports",BLUE,RGBColor(0xDB,0xEA,0xFE))
+box(s,8.2,1.5,3.3,0.5,"Admin Panel\nVerify Doctors \u00b7 Users",PURPLE,RGBColor(0xF3,0xE8,0xFF))
 
-# Arrow: all 3 users → CloudFront (single entry point)
-line(s,3.3,2.2,6.65,2.45,GREEN); line(s,6.7,2.2,6.65,2.45,BLUE); line(s,10.1,2.2,6.65,2.45,PURPLE)
+T(s,6.2,2.05,1,0.3,"\u25bc",sz=14,c=MUTED,a=PP_ALIGN.CENTER)
 
-# LAYER 2: Entry (CloudFront + Cognito side by side)
-box(s,4.3,2.45,4.7,0.5,"Amazon CloudFront + S3\n(Serves the website securely via HTTPS)",CYAN)
+# STEP 2
+T(s,0.3,2.35,0.9,0.5,"STEP 2\nDelivery",sz=8,b=True,c=MUTED)
+box(s,1.2,2.35,10.3,0.45,"Amazon CloudFront (HTTPS CDN) + Amazon S3 (Website Hosting)",CYAN)
 
-# Arrow: CloudFront → API Gateway
-line(s,6.65,2.95,6.65,3.25,CYAN)
+T(s,6.2,2.85,1,0.3,"\u25bc",sz=14,c=MUTED,a=PP_ALIGN.CENTER)
 
-# LAYER 3: Gateway + Auth
-box(s,2.2,3.25,3.5,0.5,"Amazon Cognito\n(Login · Patient or Doctor role)",PURPLE)
-box(s,6.0,3.25,5.2,0.5,"Amazon API Gateway → AWS Lambda\n(Receives all requests · Runs Python logic)",GREEN)
+# STEP 3
+T(s,0.3,3.1,0.9,0.5,"STEP 3\nAuth+API",sz=8,b=True,c=MUTED)
+box(s,1.2,3.1,4.5,0.5,"Amazon Cognito\nLogin \u00b7 Role: Patient or Doctor",PURPLE,RGBColor(0xF3,0xE8,0xFF))
+T(s,5.85,3.32,0.5,0.3,"\u2192",sz=14,c=MUTED,a=PP_ALIGN.CENTER)
+box(s,6.2,3.1,5.3,0.5,"API Gateway + Lambda\n14 endpoints \u00b7 Python 3.13",GREEN,GL)
 
-# Arrow: Cognito → API (auth token)
-line(s,5.7,3.5,6.0,3.5,PURPLE)
+T(s,8.8,3.65,1,0.3,"\u25bc",sz=14,c=MUTED,a=PP_ALIGN.CENTER)
 
-# Arrow: Lambda → down to all services
-line(s,8.6,3.75,8.6,4.15,GREEN)
+# STEP 4
+T(s,0.3,3.95,0.9,0.5,"STEP 4\nCore AI\n& Data",sz=8,b=True,c=MUTED)
+box(s,1.2,3.9,2.85,0.75,"Amazon Bedrock\n(Claude 3 Haiku)\nChat \u00b7 Meal \u00b7 Risk\nPlan \u00b7 Lab \u00b7 Coach",ORANGE,RGBColor(0xFF,0xED,0xD5))
+box(s,4.25,3.9,2.85,0.75,"Amazon DynamoDB\n(3 Tables)\nProfiles \u00b7 Logs\nReferrals",BLUE,RGBColor(0xDB,0xEA,0xFE))
+box(s,7.3,3.9,2.5,0.75,"Textract + Comprehend\nMedical\nReads lab photos\nExtracts meds",PURPLE,RGBColor(0xF3,0xE8,0xFF))
+box(s,10.0,3.9,2.5,0.75,"Amazon Polly\n(Text-to-Speech)\nReads results\naloud",PINK,RGBColor(0xFC,0xE7,0xF3))
 
-# LAYER 4: What Lambda calls (the brain + data)
-box(s,0.5,4.15,4.2,0.7,"Amazon Bedrock Agent\n(Claude 3 Haiku)\nAI brain: chat, analyze, plan, predict",ORANGE,RGBColor(0xFF,0xED,0xD5))
-box(s,4.95,4.15,3.8,0.7,"Amazon DynamoDB\n(3 Tables)\nProfiles · Health Logs · Referrals",BLUE,RGBColor(0xDB,0xEA,0xFE))
-box(s,9.0,4.15,4.2,0.7,"Specialized AI Services\nTextract (read lab photos)\nComprehend Medical (extract meds)",PURPLE,RGBColor(0xF3,0xE8,0xFF))
+T(s,6.2,4.7,1,0.3,"\u25bc",sz=14,c=MUTED,a=PP_ALIGN.CENTER)
 
-# Arrows from Lambda down to each
-line(s,8.6,4.15,2.6,4.15,ORANGE)  # to Bedrock
-line(s,8.6,4.15,6.85,4.15,BLUE)   # to DynamoDB
-line(s,8.6,4.15,11.1,4.15,PURPLE) # to Textract
+# STEP 5
+T(s,0.3,5.0,0.9,0.5,"STEP 5\nOutput",sz=8,b=True,c=MUTED)
+box(s,1.2,4.95,2.85,0.55,"Amazon SES\nEmail reports\nto patient inbox",GREEN,GL)
+box(s,4.25,4.95,2.85,0.55,"EventBridge\nAlerts when HbA1c>9%\nor glucose>300",AMBER,RGBColor(0xFE,0xF3,0xC7))
+box(s,7.3,4.95,2.5,0.55,"Step Functions\nPipeline: Meal\u2192Lab\u2192Risk\u2192Plan",AMBER,RGBColor(0xFE,0xF3,0xC7))
+box(s,10.0,4.95,2.5,0.55,"CloudWatch\nMonitor API calls\nLatency + Errors",RED,RGBColor(0xFE,0xE2,0xE2))
 
-# LAYER 5: Output services (what comes back to user)
-box(s,0.5,5.2,3.2,0.6,"Amazon Polly\n(Reads results aloud\nfor accessibility)",PINK,RGBColor(0xFC,0xE7,0xF3))
-box(s,3.95,5.2,3.2,0.6,"Amazon SES\n(Sends email reports\nto patient inbox)",GREEN,GL)
-box(s,7.4,5.2,2.8,0.6,"EventBridge\n(Fires alerts when\nmetrics cross limits)",AMBER,RGBColor(0xFE,0xF3,0xC7))
-box(s,10.45,5.2,2.6,0.6,"CloudWatch\n(Monitors system\nhealth + metrics)",RED,RGBColor(0xFE,0xE2,0xE2))
-
-# Arrows from core services down to outputs
-line(s,2.6,4.85,2.1,5.2,PINK)     # Bedrock → Polly
-line(s,6.85,4.85,5.55,5.2,GREEN)  # DynamoDB → SES
-line(s,6.85,4.85,8.8,5.2,AMBER)   # DynamoDB → EventBridge
-line(s,8.6,4.85,11.75,5.2,RED)    # Lambda → CloudWatch
-
-# LAYER 6: Step Functions (orchestration bar at bottom)
-box(s,2.5,6.1,8.4,0.5,"AWS Step Functions — Orchestrates: Meal → Lab → Risk → Plan → Insights (automated pipeline)",AMBER,RGBColor(0xFE,0xF3,0xC7))
-line(s,6.7,5.8,6.7,6.1,AMBER) # connects from middle
-
-# Legend
-T(s,0.5,6.85,12.3,0.35,"14 AWS Services · Every arrow = real API call · Fully serverless (no servers to manage)",sz=10,b=True,c=GREEN,a=PP_ALIGN.CENTER)
+# Data flow summary
+card(s,0.5,5.75,12.3,1.4,fill=GL,border=GREEN)
+T(s,0.7,5.85,11.9,0.25,"Data Flow:",sz=10,b=True,c=GREEN)
+T(s,0.7,6.1,11.9,1.0,"1. Patient signs in (Cognito) \u2192 saves profile (DynamoDB) \u2192 each save logs a time-stamped health metric\n2. Patient uploads lab photo \u2192 Textract reads it \u2192 Bedrock interprets values \u2192 saved\n3. Patient selects data to share (checkboxes) \u2192 sends referral to Doctor (DynamoDB)\n4. Doctor signs in \u2192 sees referred patients \u2192 charts render from health-logs \u2192 AI analyzes trends\n5. Doctor writes notes \u2192 report sent back to patient (DynamoDB + SES)",sz=9,c=TEXT)
 sn(s,4)
 
 # ===== SLIDE 5: PATIENT TOOLS ARCHITECTURE =====
@@ -406,6 +396,6 @@ T(s,0.5,6.5,12.3,0.4,"Thank you  ·  Terima kasih",sz=14,c=MUTED,a=PP_ALIGN.CENT
 sn(s,11,11)
 
 # ===== SAVE =====
-out="presentation/DiabetesControl_AI_v4.pptx"
+out="presentation/DiabetesControl_AI_v5.pptx"
 prs.save(out)
 print(f"Done: {out}")
