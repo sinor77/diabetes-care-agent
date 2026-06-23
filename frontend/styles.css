@@ -73,3 +73,25 @@
 .dark .text-brand-700{color:#86efac !important}
 .dark .bg-brand-50{background:#14532d !important}
 .dark .border-brand-200{border-color:#166534 !important}
+
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+    .grid.md\:grid-cols-2 { grid-template-columns: 1fr !important; }
+    .grid.md\:grid-cols-3 { grid-template-columns: 1fr !important; }
+    .grid.md\:grid-cols-5 { grid-template-columns: 1fr !important; }
+    main { padding: 0.75rem !important; }
+    nav .max-w-6xl { padding-left: 0.5rem; padding-right: 0.5rem; }
+    .tab-btn { padding: 0.4rem 0.65rem; font-size: 0.7rem; }
+    #tab-bar { gap: 0.25rem; padding: 0.4rem 0; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    #tab-bar::-webkit-scrollbar { display: none; }
+    .inp { font-size: 16px !important; } /* prevents iOS zoom on focus */
+    h2 { font-size: 1.3rem !important; }
+    h3 { font-size: 1.1rem !important; }
+    .text-2xl { font-size: 1.3rem !important; }
+    .text-lg { font-size: 1.05rem !important; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
