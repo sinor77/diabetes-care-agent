@@ -359,6 +359,41 @@ T(s,9.0,4.95,3.6,0.3,"Who gets left out?",sz=11,b=True,c=AMBER)
 T(s,9.0,5.3,3.6,1.5,"• Elderly without smartphones →\n  Plan: USSD/SMS via SNS\n• Low literacy →\n  Plan: Voice input (Transcribe)\n• Rural connectivity →\n  Plan: Offline-first mobile app",sz=10,c=TEXT)
 sn(s,9)
 
+# ===== SLIDE 9.5: PRIVACY & SECURITY =====
+s=S(); hdr(s,"Privacy & Security")
+T(s,0.5,0.85,12,0.5,"How We Protect Patient Data",sz=26,b=True,c=TEXT)
+T(s,0.5,1.3,12,0.35,"Healthcare data is sensitive. Here's how we keep it safe at every layer.",sz=12,c=MUTED)
+
+def priv(s,x,y,icon,title,details,color):
+    card(s,x,y,5.9,1.3)
+    bar=s.shapes.add_shape(MSO_SHAPE.RECTANGLE,Inches(x),Inches(y),Inches(0.07),Inches(1.3))
+    bar.fill.solid();bar.fill.fore_color.rgb=color;bar.line.fill.background()
+    T(s,x+0.25,y+0.1,5.5,0.35,icon+" "+title,sz=13,b=True,c=color)
+    T(s,x+0.25,y+0.45,5.5,0.8,details,sz=10,c=TEXT)
+
+priv(s,0.5,1.8,"🔐","Authentication & Access Control",
+     "• Amazon Cognito: email-verified sign-up\n• Role-based: Patient cannot access Doctor dashboard\n• Doctor accounts require Admin verification before appearing\n• Session tokens expire after 30 minutes of inactivity",GREEN)
+
+priv(s,6.85,1.8,"🔒","Data Encryption",
+     "• HTTPS everywhere (CloudFront TLS 1.3)\n• DynamoDB encryption at rest (AES-256, AWS-managed keys)\n• Data isolated per user (email = partition key)\n• No cross-account data access possible",BLUE)
+
+priv(s,0.5,3.3,"🛡️","AI Safety Guardrails",
+     "• System prompt forbids medication dose changes\n• Temperature 0.3 = factual, low-hallucination responses\n• Crisis detection: redirects to emergency services\n• Disclaimer on every output: 'Not a replacement for your doctor'",PURPLE)
+
+priv(s,6.85,3.3,"📍","Data Residency & Compliance",
+     "• All data stays in ap-southeast-1 (Singapore)\n• No data leaves ASEAN region\n• AWS is HIPAA-eligible and SOC 2 certified\n• Designed for future PDPA (Malaysia) compliance\n• No patient data used to train AI models",RED)
+
+priv(s,0.5,4.8,"👁️","Doctor Access Controls",
+     "• Doctor only sees patients who CHOSE to share\n• Patients select what to share (checkboxes)\n• Doctor cannot access other doctors' patients\n• Admin can revoke doctor access instantly",AMBER)
+
+priv(s,6.85,4.8,"📊","Monitoring & Audit",
+     "• CloudWatch logs every API call\n• All actions timestamped in DynamoDB\n• Admin can see who accessed what\n• EventBridge detects unusual patterns\n• No data is ever permanently deleted without consent",CYAN)
+
+card(s,0.5,6.3,12.3,0.7,fill=GL,border=GREEN)
+T(s,0.7,6.4,11.9,0.3,"Key Principle:",sz=11,b=True,c=GREEN)
+T(s,0.7,6.7,11.9,0.3,"The patient owns their data. They choose what to share, with whom, and can delete it anytime.",sz=12,b=True,c=TEXT)
+sn(s,10,11)
+
 # ===== SLIDE 10: CLOSING =====
 s=S()
 bar=s.shapes.add_shape(MSO_SHAPE.RECTANGLE,0,0,SW,Inches(0.08));bar.fill.solid();bar.fill.fore_color.rgb=GREEN;bar.line.fill.background()
@@ -368,9 +403,9 @@ url2=s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,Inches(3.5),Inches(5.2),Inch
 url2.fill.solid();url2.fill.fore_color.rgb=GL;url2.line.color.rgb=GREEN;url2.line.width=Pt(1.5);url2.adjustments[0]=0.15
 T(s,3.5,5.2,6.3,0.6,"github.com/sinor77/diabetes-care-agent",sz=13,b=True,c=GREEN,a=PP_ALIGN.CENTER,v=MSO_ANCHOR.MIDDLE,f="Consolas")
 T(s,0.5,6.5,12.3,0.4,"Thank you  ·  Terima kasih",sz=14,c=MUTED,a=PP_ALIGN.CENTER)
-sn(s,10)
+sn(s,11,11)
 
 # ===== SAVE =====
-out="presentation/DiabetesControl_AI_v3.pptx"
+out="presentation/DiabetesControl_AI_v4.pptx"
 prs.save(out)
 print(f"Done: {out}")
