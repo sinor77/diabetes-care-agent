@@ -292,27 +292,33 @@ y=5.05
 for step in steps: T(s,0.7,y,12,0.25,step,sz=10,c=TEXT); y+=0.28
 sn(s,7)
 
-# ===== SLIDE 8: HOW AI MAKES THIS UNIQUE =====
-s=S(); hdr(s,"Why AI — Not Just a Form")
-T(s,0.5,0.85,12,0.5,"What AI Does That Nothing Else Can",sz=26,b=True,c=TEXT)
-T(s,0.5,1.35,12,0.35,"A regular app collects data. Our app UNDERSTANDS it.",sz=13,c=MUTED)
 
-def compare(s,y,old,new,icon):
-    card(s,0.5,y,5.8,0.65,fill=RGBColor(0xFE,0xE2,0xE2),border=RED)
-    T(s,0.7,y+0.08,5.5,0.28,"❌  WITHOUT AI:",sz=9,b=True,c=RED)
-    T(s,0.7,y+0.35,5.5,0.28,old,sz=10,c=TEXT)
-    card(s,6.5,y,6.3,0.65,fill=GL,border=GREEN)
-    T(s,6.7,y+0.08,5.9,0.28,icon+" WITH OUR AI:",sz=9,b=True,c=GREEN)
-    T(s,6.7,y+0.35,5.9,0.28,new,sz=10,c=TEXT)
+# ===== SLIDE 8: WHY AI =====
+s=S(); hdr(s,"Why AI?")
+T(s,0.5,0.85,12,0.5,"Regular App vs Our AI",sz=28,b=True,c=TEXT)
+T(s,0.5,1.35,12,0.3,"A form collects data. Our AI understands it.",sz=14,b=True,c=GREEN)
 
-compare(s,1.9,"Patient uploads lab photo → nothing happens. Must type values manually.","Patient uploads photo → Claude READS it → extracts all values → interprets them instantly.","📷")
-compare(s,2.7,"Patient types 'sugar was 245 after dinner' → app stores a number.","AI knows 245 is HIGH, considers their medication, and says what to eat tomorrow.","🧠")
-compare(s,3.5,"Doctor sees a table of numbers → must interpret themselves.","AI says 'HbA1c trending down but LDL rising — recommend statin discussion.'","📊")
-compare(s,4.3,"Patient asks 'can I eat nasi lemak?' → generic meal plan PDF.","AI knows their HbA1c, weight, meds → suggests HALF rice + extra egg + teh-o kosong.","🥗")
-compare(s,5.1,"Risk detection: none until next clinic visit in 3 months.","AI flags: 'Gap >6h between meals + on glimepiride = hypoglycemia risk RIGHT NOW.'","⚡")
-compare(s,5.9,"Email reports: copy-paste from app.","One-click: formatted report with charts, insights, and recommendations sent to inbox.","📧")
+# Simple before/after rows
+T(s,0.5,1.9,6,0.35,"\u274c  Without AI",sz=13,b=True,c=RED)
+T(s,6.8,1.9,6,0.35,"\u2705  With Our AI",sz=13,b=True,c=GREEN)
 
-T(s,0.5,6.8,12.3,0.4,"Key tech: Amazon Bedrock (Claude 3 Haiku) · Amazon Textract (OCR) · Comprehend Medical (NLP) · Polly (voice)",sz=11,b=True,c=GREEN,a=PP_ALIGN.CENTER)
+pairs = [
+    ("Patient uploads lab photo\n\u2192 Must type values manually","AI reads the photo\n\u2192 Extracts all values instantly"),
+    ("Sugar was 245 after dinner\n\u2192 App stores the number 245","Knows 245 is HIGH for this patient\n\u2192 Tells them what to eat next"),
+    ("Doctor sees a table of numbers\n\u2192 Must interpret alone","AI says: HbA1c dropping but LDL rising\n\u2192 Recommend statin discussion"),
+    ("Can I eat nasi lemak?\n\u2192 Generic PDF advice","Knows their weight, meds, HbA1c\n\u2192 Half rice + extra egg + teh-o"),
+    ("Risk detection\n\u2192 Nothing until next visit (3 months)","Flags: meal gap + medication\n\u2192 Hypo risk RIGHT NOW"),
+]
+
+y = 2.4
+for left, right in pairs:
+    card(s,0.5,y,6.1,0.85,fill=RGBColor(0xFE,0xE2,0xE2),border=RED)
+    T(s,0.7,y+0.1,5.7,0.7,left,sz=10,c=TEXT)
+    card(s,6.8,y,6.1,0.85,fill=GL,border=GREEN)
+    T(s,7.0,y+0.1,5.7,0.7,right,sz=10,c=TEXT)
+    y += 0.95
+
+T(s,0.5,7.0,12.3,0.3,"Powered by: Amazon Bedrock (Claude 3 Haiku) + Textract + Comprehend Medical + Polly",sz=10,c=MUTED,a=PP_ALIGN.CENTER)
 sn(s,8)
 
 # ===== SLIDE 9: IMPACT + COST =====
