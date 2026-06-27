@@ -864,6 +864,13 @@ function handleAuth() {
 
     if (!email || !password) { showAuthError("Email and password required."); return; }
 
+    // Check agreement checkbox (required for signup and first sign-in)
+    const agreeBox = document.getElementById("auth-agree");
+    if (agreeBox && !agreeBox.checked) {
+        showAuthError("You must agree to the Terms of Service and Privacy Policy.");
+        return;
+    }
+
     if (authMode === "signup") {
         signUp(email, password);
     } else if (authMode === "confirm") {

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy - Diabetes Control AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-3xl mx-auto px-4 py-12">
+<a href="index.html" class="text-sm text-green-600 hover:underline">← Back to App</a>
+<h1 class="text-3xl font-bold text-gray-900 mt-4 mb-6">Privacy Policy</h1>
+<p class="text-sm text-gray-500 mb-8">Last updated: June 2026</p>
+
+<div class="prose prose-sm text-gray-700 space-y-4">
+<h2 class="text-lg font-semibold text-gray-900">1. Information We Collect</h2>
+<p>We collect the following data that you voluntarily provide:</p>
+<ul class="list-disc ml-6 space-y-1">
+<li>Account information (email, password via Amazon Cognito)</li>
+<li>Health profile (name, age, diabetes type, HbA1c, weight, medications, etc.)</li>
+<li>Lab results (uploaded photos and typed values)</li>
+<li>Chat history with the AI Coach</li>
+<li>Health metrics logged over time (glucose, blood pressure, weight)</li>
+</ul>
+
+<h2 class="text-lg font-semibold text-gray-900">2. How We Use Your Data</h2>
+<ul class="list-disc ml-6 space-y-1">
+<li>To provide personalized AI health analysis and recommendations</li>
+<li>To display health trends and charts in your dashboard</li>
+<li>To share with doctors ONLY when you explicitly choose to (via checkboxes)</li>
+<li>To send email reports when you request them</li>
+<li>To improve the Service (aggregated, anonymized data only)</li>
+</ul>
+
+<h2 class="text-lg font-semibold text-gray-900">3. Data Storage & Security</h2>
+<ul class="list-disc ml-6 space-y-1">
+<li>All data is stored in Amazon DynamoDB with AES-256 encryption at rest</li>
+<li>Data transmitted via HTTPS (TLS 1.3) through Amazon CloudFront</li>
+<li>Data resides in AWS ap-southeast-1 (Singapore) — within ASEAN region</li>
+<li>Each user's data is isolated by their email address (partition key)</li>
+<li>Authentication managed by Amazon Cognito with email verification</li>
+</ul>
+
+<h2 class="text-lg font-semibold text-gray-900">4. Data Sharing</h2>
+<p><strong>We never sell your data.</strong> Your health data is shared only:</p>
+<ul class="list-disc ml-6 space-y-1">
+<li>With doctors you explicitly choose to refer to (you select what to share)</li>
+<li>With AWS services for processing (Bedrock, Textract, etc.) — not stored by AWS</li>
+<li>If required by law or court order</li>
+</ul>
+
+<h2 class="text-lg font-semibold text-gray-900">5. Your Rights</h2>
+<ul class="list-disc ml-6 space-y-1">
+<li><strong>Access:</strong> View all your stored data in the Profile tab</li>
+<li><strong>Correction:</strong> Edit your profile at any time</li>
+<li><strong>Deletion:</strong> Delete your profile and all data via the Delete button</li>
+<li><strong>Portability:</strong> Email yourself a full report of all your data</li>
+<li><strong>Control:</strong> Choose what to share with doctors via checkboxes</li>
+</ul>
+
+<h2 class="text-lg font-semibold text-gray-900">6. AI & Your Data</h2>
+<p>Your data is sent to Amazon Bedrock (Claude 3 Haiku) for analysis. Amazon does <strong>not</strong> use your prompts or data to train their AI models. Responses are generated in real-time and not stored by Amazon.</p>
+
+<h2 class="text-lg font-semibold text-gray-900">7. Cookies & Local Storage</h2>
+<p>We use browser localStorage to save your preferences (theme, session). No third-party tracking cookies are used.</p>
+
+<h2 class="text-lg font-semibold text-gray-900">8. Children's Privacy</h2>
+<p>The Service is not intended for users under 18 years of age without parental consent.</p>
+
+<h2 class="text-lg font-semibold text-gray-900">9. PDPA Compliance (Malaysia)</h2>
+<p>This Service is designed to comply with Malaysia's Personal Data Protection Act 2010 (PDPA). You have the right to access, correct, and withdraw consent for your personal data at any time.</p>
+
+<h2 class="text-lg font-semibold text-gray-900">10. Contact</h2>
+<p>For privacy concerns or data requests, contact the system administrator.</p>
+</div>
+</div>
+</body>
+</html>
